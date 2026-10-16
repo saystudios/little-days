@@ -1,0 +1,17 @@
+{
+  "name": "little-days-ios",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "ios:sync": "node scripts/prepare-web.mjs && npx cap sync ios",
+    "ios:add": "node scripts/prepare-web.mjs && npx cap add ios",
+    "ios:build": "node scripts/prepare-web.mjs && npx cap sync ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "7.4.4",
+    "@capacitor/ios": "7.4.4"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "7.4.4"
+  }
+}
