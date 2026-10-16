@@ -1,0 +1,115 @@
+name: Little Days TestFlight
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: App version
+        required: true
+        default: '1.0'
+jobs:
+  testflight:
+    runs-on: macos-15
+    timeout-minutes: 65
+    env:
+      APP_ID: com.saystudios.littledays
+      TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      CERTIFICATE_BASE64: ${{ secrets.APPLE_DISTRIBUTION_P12_BASE64 }}
+      CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_P12_PASSWORD }}
+      PROFILE_BASE64: ${{ secrets.APP_STORE_PROFILE_BASE64 }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Confirm signing secrets exist
+        shell: bash
+        run: |
+          for key in TEAM_ID CERTIFICATE_BASE64 CERTIFICATE_PASSWORD PROFILE_BASE64 ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8; do
+            if [ -z "${!key}" ]; then echo "::error::Missing $key secret"; exit 1; fi
+          done
+      - name: Prepare Capacitor app
+        run: |
+          npm install --no-audit --no-fund
+          node scripts/prepare-web.mjs
+          npx cap add ios
+          npx cap sync ios
+      - name: Import signing assets
+        shell: bash
+        run: |
+          CERT_PATH="$RUNNER_TEMP/distribution.p12"
+          PROFILE_PATH="$RUNNER_TEMP/app.mobileprovision"
+          KEYCHAIN_PATH="$RUNNER_TEMP/littledays.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+          printf '%s' "$CERTIFICATE_BASE64" | base64 --decode > "$CERT_PATH"
+          printf '%s' "$PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$CERTIFICATE_PASSWORD" -A -t agg -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          /usr/libexec/PlistBuddy -x -c 'Print :Entitlements' /dev/null >/dev/null 2>&1 || true
+          security cms -D -i "$PROFILE_PATH" > "$RUNNER_TEMP/profile.plist"
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
+          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+      - name: Set iOS signing and version
+        shell: bash
+        run: |
+          ruby -e "require 'xcodeproj'" || gem install xcodeproj --no-document
+          ruby <<'RUBY'
+          require 'xcodeproj'
+          p = Xcodeproj::Project.open('ios/App/App.xcodeproj')
+          p.targets.find { |t| t.name == 'App' }.build_configurations.each do |c|
+            c.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = ENV.fetch('APP_ID')
+            c.build_settings['DEVELOPMENT_TEAM'] = ENV.fetch('TEAM_ID')
+            c.build_settings['CODE_SIGN_STYLE'] = 'Manual'
+            c.build_settings['CODE_SIGN_IDENTITY'] = 'Apple Distribution'
+            c.build_settings['PROVISIONING_PROFILE_SPECIFIER'] = ENV.fetch('PROFILE_NAME')
+            c.build_settings['MARKETING_VERSION'] = ENV.fetch('VERSION')
+            c.build_settings['CURRENT_PROJECT_VERSION'] = ENV.fetch('BUILD_NUMBER')
+          end
+          p.save
+          RUBY
+        env:
+          VERSION: ${{ inputs.version }}
+          BUILD_NUMBER: ${{ github.run_number }}
+      - name: Archive iOS app
+        shell: bash
+        run: |
+          set -o pipefail
+          xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/LittleDays.xcarchive" archive > "$RUNNER_TEMP/archive.log" 2>&1 || {
+            grep -E 'error:|ARCHIVE FAILED|No such module' "$RUNNER_TEMP/archive.log" | tail -n 35 || true
+            tail -n 65 "$RUNNER_TEMP/archive.log"
+            exit 1
+          }
+      - name: Upload archive to TestFlight
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/private_keys"
+          printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/private_keys/AuthKey_$ASC_KEY_ID.p8"
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+          <key>method</key><string>app-store-connect</string>
+          <key>destination</key><string>upload</string>
+          <key>signingStyle</key><string>manual</string>
+          <key>teamID</key><string>$TEAM_ID</string>
+          <key>provisioningProfiles</key><dict><key>$APP_ID</key><string>$PROFILE_NAME</string></dict>
+          <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/LittleDays.xcarchive" -exportPath "$RUNNER_TEMP/export" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -authenticationKeyPath "$RUNNER_TEMP/private_keys/AuthKey_$ASC_KEY_ID.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+      - name: Clean up temporary signing files
+        if: always()
+        run: |
+          security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true
+          rm -rf "$RUNNER_TEMP/private_keys" "$RUNNER_TEMP/distribution.p12" "$RUNNER_TEMP/app.mobileprovision"
