@@ -1,0 +1,43 @@
+name: Little Days iOS build check
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'cloud.js'
+      - 'cloud-config.js'
+      - 'reminders.js'
+      - 'capacitor.config.json'
+      - 'package.json'
+      - 'scripts/**'
+      - '.github/workflows/ios-preview.yml'
+jobs:
+  ios-simulator:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Generate Capacitor iOS project
+        run: |
+          node scripts/prepare-web.mjs
+          npx cap add ios
+          npx cap sync ios
+      - name: Compile iOS Simulator
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+      - name: Package simulator app
+        run: |
+          APP=$(find "$HOME/Library/Developer/Xcode/DerivedData" -path '*/Build/Products/Debug-iphonesimulator/App.app' -type d -print -quit)
+          test -n "$APP"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "$RUNNER_TEMP/LittleDays-simulator.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: little-days-ios-simulator
+          path: ${{ runner.temp }}/LittleDays-simulator.zip
+          retention-days: 7
