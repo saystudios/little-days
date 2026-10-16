@@ -1,0 +1,10 @@
+{
+  "appId": "com.saystudios.littledays",
+  "appName": "Little Days",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "automatic",
+    "scrollEnabled": true,
+    "backgroundColor": "#fff8f5"
+  }
+}
