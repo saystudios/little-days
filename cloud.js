@@ -26,7 +26,7 @@ mount.querySelector('#cloudLogout').onclick=async()=>{await client.auth.signOut(
 async function activeUI(code){if(!code){let x=await client.from('families').select('invite_code').eq('id',family).single();code=x.data?.invite_code||''}
 set('<b>☁️ Family sync enabled</b><p style="font-size:12px">Invite another parent using this code:</p><div style="font-weight:700;word-break:break-all" id="inviteCode">'+esc(code)+'</div><button id="cloudCopy" style="margin-top:7px">Copy code</button> <button id="cloudLogout">Sign out</button><p id="cloudMessage" style="font-size:12px">Syncing…</p>');
 mount.querySelector('#cloudCopy').onclick=()=>navigator.clipboard.writeText(code).then(()=>msg('Copied'));
-mount.querySelector('#cloudLogout').onclick=async()=>{await client.auth.signOut();family=null;clearInterval(pollTimer);loginUI()};
+mount.querySelector('#cloudLogout').onclick=async()=>{await client.auth.signOut();family=null;clearInterval(pollTimer);if(liveChannel){client.removeChannel(liveChannel);liveChannel=null}loginUI()};
 try{dirty=false;await readCloud();msg('☁️ Synced')}catch(e){msg(e.message)}
 if(liveChannel)client.removeChannel(liveChannel);liveChannel=client.channel('family-'+family).on('postgres_changes',{event:'UPDATE',schema:'public',table:'family_planners',filter:'family_id=eq.'+family},async payload=>{if(dirty||busy||queueTimer)return msg('Another device changed the calendar; finish your edits before refreshing.');if(payload.new?.updated_at===lastVersion)return;try{await readCloud();msg('Live family update received')}catch(e){msg('Sync error: '+e.message)}}).subscribe();clearInterval(pollTimer);pollTimer=setInterval(async()=>{if(document.visibilityState==='visible'&&!queueTimer&&!dirty&&!busy){try{await readCloud()}catch(e){}}},30000)
 }
