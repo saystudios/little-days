@@ -24,12 +24,12 @@ create policy "members can read family" on public.families for select to authent
 );
 create policy "members see own membership" on public.family_members for select to authenticated using(user_id=(select auth.uid()));
 create policy "members read planner" on public.family_planners for select to authenticated using (
- exists(select 1 from public.family_members m where m.family_id=family_id and m.user_id=(select auth.uid()))
+ exists(select 1 from public.family_members m where m.family_id=public.family_planners.family_id and m.user_id=(select auth.uid()))
 );
 create policy "members update planner" on public.family_planners for update to authenticated using (
- exists(select 1 from public.family_members m where m.family_id=family_id and m.user_id=(select auth.uid()))
+ exists(select 1 from public.family_members m where m.family_id=public.family_planners.family_id and m.user_id=(select auth.uid()))
 ) with check (
- exists(select 1 from public.family_members m where m.family_id=family_id and m.user_id=(select auth.uid()))
+ exists(select 1 from public.family_members m where m.family_id=public.family_planners.family_id and m.user_id=(select auth.uid()))
 );
 create or replace function public.create_family(initial_data jsonb default '{"kids":[],"events":[],"tasks":[]}'::jsonb)
 returns table(id uuid, invite_code text) language plpgsql security definer set search_path = '' as $$
