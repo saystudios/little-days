@@ -16,7 +16,7 @@ jobs:
       BUNDLE_ID: com.saystudios.littledays
       KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ISSUER: ${{ secrets.ASC_ISSUER_ID }}
-      SIGN_DIR: ${{ runner.temp }}/sign
+      SIGN_DIR: ${{ github.workspace }}/.sign
       PROFILE_NAME: Little Days CI ${{ github.run_id }}
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
