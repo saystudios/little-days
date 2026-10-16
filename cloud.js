@@ -9,7 +9,7 @@ const set=(h)=>{mount.innerHTML='<div style="display:flex;align-items:center;jus
 if(!cfg?.url||!cfg?.anonKey){set('<b>☁️ Cloud sync not configured</b><div style="font-size:12px;margin-top:5px">Your planner is stored on this device. Family accounts require cloud setup.</div>');return}
 let mod;try{mod=await import('https://esm.sh/@supabase/supabase-js@2');}catch(e){set('Cloud login unavailable. Offline planner still works.');return}
 const client=mod.createClient(cfg.url,cfg.anonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-let user=null,family=null,queueTimer=null,pollTimer=null,loading=false,dirty=false,lastVersion=null,busy=false;
+let user=null,family=null,queueTimer=null,pollTimer=null,liveChannel=null,loading=false,dirty=false,lastVersion=null,busy=false;
 const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','"':'&quot;'}[c]));
 const msg=s=>{let m=mount.querySelector('#cloudMessage');if(m)m.textContent=s};
 const unpack=x=>x&&Array.isArray(x.kids)&&Array.isArray(x.events)&&Array.isArray(x.tasks);
