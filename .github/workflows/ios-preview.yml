@@ -30,7 +30,14 @@ jobs:
           npx cap sync ios
       - name: Compile iOS Simulator
         run: |
-          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+          set -o pipefail
+          xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build > "$RUNNER_TEMP/little-days-build.log" 2>&1 || {
+            echo "Build failed. Relevant compiler errors:"
+            grep -n -E '(^|[[:space:]])error:|SwiftCompile|BUILD FAILED|No such module|cannot find' "$RUNNER_TEMP/little-days-build.log" | tail -n 55 || true
+            tail -n 70 "$RUNNER_TEMP/little-days-build.log"
+            exit 1
+          }
+          tail -n 12 "$RUNNER_TEMP/little-days-build.log"
       - name: Package simulator app
         run: |
           APP=$(find "$HOME/Library/Developer/Xcode/DerivedData" -path '*/Build/Products/Debug-iphonesimulator/App.app' -type d -print -quit)
