@@ -28,7 +28,7 @@ set('<b>☁️ Family sync enabled</b><p style="font-size:12px">Invite another p
 mount.querySelector('#cloudCopy').onclick=()=>navigator.clipboard.writeText(code).then(()=>msg('Copied'));
 mount.querySelector('#cloudLogout').onclick=async()=>{await client.auth.signOut();family=null;clearInterval(pollTimer);loginUI()};
 try{dirty=false;await readCloud();msg('☁️ Synced')}catch(e){msg(e.message)}
-clearInterval(pollTimer);pollTimer=setInterval(async()=>{if(document.visibilityState==='visible'&&!queueTimer&&!dirty&&!busy){try{await readCloud()}catch(e){}}},30000)
+if(liveChannel)client.removeChannel(liveChannel);liveChannel=client.channel('family-'+family).on('postgres_changes',{event:'UPDATE',schema:'public',table:'family_planners',filter:'family_id=eq.'+family},async payload=>{if(dirty||busy||queueTimer)return msg('Another device changed the calendar; finish your edits before refreshing.');if(payload.new?.updated_at===lastVersion)return;try{await readCloud();msg('Live family update received')}catch(e){msg('Sync error: '+e.message)}}).subscribe();clearInterval(pollTimer);pollTimer=setInterval(async()=>{if(document.visibilityState==='visible'&&!queueTimer&&!dirty&&!busy){try{await readCloud()}catch(e){}}},30000)
 }
 async function startup(){const {data:{user:u}}=await client.auth.getUser();user=u;if(!user)return loginUI();const {data:rows,error}=await client.from('family_members').select('family_id').eq('user_id',user.id).limit(1);if(error)return set('Cloud setup error: '+esc(error.message));if(rows.length){family=rows[0].family_id;return activeUI()}chooseFamily()}
 client.auth.onAuthStateChange((_event,session)=>{if(session?.user&&!user){user=session.user;setTimeout(startup,0)}});
