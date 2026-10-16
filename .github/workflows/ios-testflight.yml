@@ -13,9 +13,11 @@ jobs:
     env:
       APP_ID: com.saystudios.littledays
       TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      CERTIFICATE_BASE64: ${{ secrets.APPLE_DISTRIBUTION_P12_BASE64 }}
-      CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_P12_PASSWORD }}
-      PROFILE_BASE64: ${{ secrets.APP_STORE_PROFILE_BASE64 }}
+      BUNDLE_ID: com.saystudios.littledays
+      KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+      SIGN_DIR: ${{ runner.temp }}/sign
+      PROFILE_NAME: Little Days CI ${{ github.run_id }}
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
@@ -27,7 +29,7 @@ jobs:
       - name: Confirm signing secrets exist
         shell: bash
         run: |
-          for key in TEAM_ID CERTIFICATE_BASE64 CERTIFICATE_PASSWORD PROFILE_BASE64 ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8; do
+          for key in TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8; do
             if [ -z "${!key}" ]; then echo "::error::Missing $key secret"; exit 1; fi
           done
       - name: Prepare Capacitor app
@@ -36,29 +38,28 @@ jobs:
           node scripts/prepare-web.mjs
           npx cap add ios
           npx cap sync ios
-      - name: Import signing assets
+      - name: Generate Apple certificate and provisioning profile
         shell: bash
         run: |
-          CERT_PATH="$RUNNER_TEMP/distribution.p12"
-          PROFILE_PATH="$RUNNER_TEMP/app.mobileprovision"
-          KEYCHAIN_PATH="$RUNNER_TEMP/littledays.keychain-db"
+          mkdir -p "$RUNNER_TEMP/private_keys" "$SIGN_DIR"
+          printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/private_keys/AuthKey_$KEY_ID.p8"
+          export KEYFILE="$RUNNER_TEMP/private_keys/AuthKey_$KEY_ID.p8"
+          ruby .github/scripts/asc.rb setup
+          cd "$SIGN_DIR"
+          CERT_PASSWORD="$(openssl rand -hex 24)"
           KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
-          printf '%s' "$CERTIFICATE_BASE64" | base64 --decode > "$CERT_PATH"
-          printf '%s' "$PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
+          KEYCHAIN_PATH="$SIGN_DIR/signing.keychain-db"
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security import "$CERT_PATH" -P "$CERTIFICATE_PASSWORD" -A -t agg -f pkcs12 -k "$KEYCHAIN_PATH"
-          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          openssl x509 -inform DER -in dist.cer -out dist.pem
+          openssl pkcs12 -export -inkey dist.key -in dist.pem -out dist.p12 -passout pass:"$CERT_PASSWORD"
+          security import dist.p12 -P "$CERT_PASSWORD" -k "$KEYCHAIN_PATH" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          UUID="$(cat profile_uuid)"
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          /usr/libexec/PlistBuddy -x -c 'Print :Entitlements' /dev/null >/dev/null 2>&1 || true
-          security cms -D -i "$PROFILE_PATH" > "$RUNNER_TEMP/profile.plist"
-          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
-          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
-          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
-          echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+          cp app.mobileprovision "$HOME/Library/MobileDevice/Provisioning Profiles/$UUID.mobileprovision"
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
       - name: Set iOS signing and version
         shell: bash
@@ -94,7 +95,6 @@ jobs:
         shell: bash
         run: |
           mkdir -p "$RUNNER_TEMP/private_keys"
-          printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/private_keys/AuthKey_$ASC_KEY_ID.p8"
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -110,6 +110,9 @@ jobs:
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/LittleDays.xcarchive" -exportPath "$RUNNER_TEMP/export" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -authenticationKeyPath "$RUNNER_TEMP/private_keys/AuthKey_$ASC_KEY_ID.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
       - name: Clean up temporary signing files
         if: always()
+        shell: bash
         run: |
-          security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true
-          rm -rf "$RUNNER_TEMP/private_keys" "$RUNNER_TEMP/distribution.p12" "$RUNNER_TEMP/app.mobileprovision"
+          export KEYFILE="$RUNNER_TEMP/private_keys/AuthKey_$KEY_ID.p8"
+          if [ -f "$KEYFILE" ]; then ruby .github/scripts/asc.rb cleanup || true; fi
+          if [ -n "${KEYCHAIN_PATH:-}" ]; then security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true; fi
+          rm -rf "$RUNNER_TEMP/private_keys" "$SIGN_DIR"
