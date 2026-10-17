@@ -419,3 +419,42 @@ h1, h2, h3, h4 { font-family: var(--display); letter-spacing: -.01em; margin: 0;
 
 /* One sync pill at a time: in the rail on wide screens, in the page header otherwise. */
 @media (min-width: 1081px) { #syncPill { display: none !important; } }
+
+/* ---------- Phase 3a: repeat options, day view, drag ---------- */
+.daypick { display: flex; gap: 6px; flex-wrap: wrap; }
+.daypick label, .radios label { position: relative; }
+.daypick input, .radios input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.daypick span { display: inline-grid; place-items: center; width: var(--tap); height: var(--tap); border-radius: 50%; border: 1.5px solid var(--line); font-weight: 700; color: var(--ink-2); background: var(--surface); }
+.daypick input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.radios { display: flex; flex-direction: column; gap: 8px; }
+.radios span { display: flex; align-items: center; gap: 10px; min-height: var(--tap); padding: 0 14px; border-radius: 14px; border: 1.5px solid var(--line); font-weight: 600; }
+.radios span::before { content: ""; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--ink-3); flex: none; }
+.radios input:checked + span { border-color: var(--accent); background: var(--accent-soft); }
+.radios input:checked + span::before { border: 6px solid var(--accent); }
+.daypick input:focus-visible + span, .radios input:focus-visible + span, .switch input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 2px; }
+.switch { position: relative; display: inline-flex; align-items: center; gap: 12px; min-height: var(--tap); font-weight: 650; color: var(--ink); cursor: pointer; }
+.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.switch span { display: inline-flex; align-items: center; gap: 12px; }
+.switch span::before { content: ""; width: 48px; height: 28px; border-radius: 999px; background: var(--line); box-shadow: inset 0 0 0 2px var(--line); transition: background .15s; }
+.switch span::after { content: ""; position: absolute; left: 3px; top: 50%; margin-top: -11px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .15s; }
+.switch input:checked + span::before { background: var(--accent); box-shadow: none; }
+.switch input:checked + span::after { transform: translateX(20px); }
+.scope { padding: 12px; border-radius: 16px; background: var(--surface-2); }
+
+.dayview { --gut: 64px; padding: 16px; }
+.dayview .allday { margin: 0 0 12px var(--gut); }
+.daygrid { position: relative; }
+.slot { position: absolute; left: 0; right: 0; height: 56px; border: 0; border-top: 1px solid var(--line); background: none; text-align: left; padding: 0; cursor: pointer; }
+.slot:hover { background: var(--surface-2); }
+.slot span { position: absolute; top: -9px; left: 0; width: calc(var(--gut) - 10px); text-align: right; font-size: 12px; color: var(--ink-3); background: var(--surface); padding-right: 4px; }
+.dblock {
+  position: absolute; z-index: 1; overflow: hidden; border: 0; border-radius: 12px; padding: 6px 10px; text-align: left;
+  background: var(--c); color: var(--c-ink); border-left: 4px solid var(--c-ink); cursor: pointer; display: flex; flex-direction: column; gap: 2px;
+}
+.dblock strong { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dblock small { font-size: 12px; font-weight: 600; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nowline { position: absolute; left: calc(var(--gut) - 6px); right: 0; height: 2px; background: var(--accent); z-index: 2; pointer-events: none; }
+.nowline::before { content: ""; position: absolute; left: -5px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+.mday.drop, .wcol.drop { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+[draggable="true"] { -webkit-user-drag: element; }
+@media (max-width: 720px) { .dayview { --gut: 48px; padding: 12px 10px; } .segmented button { padding: 0 11px; } }
