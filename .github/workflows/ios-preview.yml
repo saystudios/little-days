@@ -6,6 +6,9 @@ on:
     paths:
       - 'index.html'
       - 'planner-core.js'
+      - 'reminders-core.js'
+      - 'native.js'
+      - 'resources/**'
       - 'app.js'
       - 'kids.js'
       - 'lists.js'
@@ -35,6 +38,7 @@ jobs:
         run: |
           node scripts/prepare-web.mjs
           npx cap add ios
+          npm run ios:assets
           npx cap sync ios
       - name: Compile iOS Simulator
         run: |

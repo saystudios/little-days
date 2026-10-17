@@ -68,7 +68,7 @@
     if (core.isPlanner(row.content)) {
       lastVersion = row.updated_at;
       loading = true;
-      try { data = row.content; localStorage.setItem(STORE, JSON.stringify(data)); render(); }
+      try { data = row.content; localStorage.setItem(STORE, JSON.stringify(data)); render(); afterChange(); }
       finally { loading = false; }
     }
   }
@@ -103,7 +103,8 @@
       if (engine) return engine.queue();
       dirty = true; status('Saving…'); clearTimeout(queueTimer); queueTimer = setTimeout(upload, 900);
     },
-    pending: () => engine?.pending() || 0
+    pending: () => engine?.pending() || 0,
+    refresh: () => { if (engine) { engine.pull(); engine.flush(); } }
   };
   window.addEventListener('online', () => { if (family && !engine && dirty && !busy) upload(); });
 
@@ -129,8 +130,8 @@
     engine = LittleDaysItemSync.create({
       client, family,
       getData: () => data,
-      setData: d => { loading = true; try { data = d; localStorage.setItem(STORE, JSON.stringify(data)); render(); } finally { loading = false; } },
-      onChange: d => { loading = true; try { localStorage.setItem(STORE, JSON.stringify(d)); render(); } finally { loading = false; } },
+      setData: d => { loading = true; try { data = d; localStorage.setItem(STORE, JSON.stringify(data)); render(); afterChange(); } finally { loading = false; } },
+      onChange: d => { loading = true; try { localStorage.setItem(STORE, JSON.stringify(d)); render(); afterChange(); } finally { loading = false; } },
       onStatus: status,
       onNotice: (m, isError) => { const text = typeof m === 'string' ? m : friendly(m); msg(text, isError); if (!isError && typeof toast === 'function') toast(text); }
     });

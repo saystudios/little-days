@@ -43,6 +43,13 @@ const todayKey = () => dateKey(new Date());
 function save() {
   try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) { toast('Could not save on this device. Export a backup.'); }
   window.littleDaysSync?.queue?.();
+  afterChange();
+}
+/* The planner changed (here or from another device): refresh reminders and
+   the iPhone/iPad storage backup. */
+function afterChange() {
+  window.littleDaysReminders?.apply?.();
+  window.dispatchEvent(new Event('littledays:saved'));
 }
 
 function getAllEvents(start, end) { return expandEvents(data.events, start, end); }
@@ -273,6 +280,7 @@ function renderCalendar() {
   }
   bindItems();
   bindDrag();
+  bindTouchDrag();
 }
 
 /* Day view: an hour grid; overlapping activities sit side by side. */
@@ -333,6 +341,55 @@ function bindDrag() {
     };
   });
 }
+
+/* Touch screens (iPad, iPhone): long-press an activity, then drag it to
+   another day. A short swipe still scrolls as usual. */
+let touchDrag = null, suppressClick = false;
+function bindTouchDrag() {
+  document.querySelectorAll('#calBody [draggable="true"]').forEach(el => {
+    el.addEventListener('touchstart', ev => {
+      if (ev.touches.length !== 1) return;
+      const t = ev.touches[0];
+      touchDrag = { el, x: t.clientX, y: t.clientY, active: false, over: null,
+        timer: setTimeout(() => {
+          if (!touchDrag) return;
+          touchDrag.active = true;
+          window.littleDaysNative?.tap?.();
+          const r = el.getBoundingClientRect(), ghost = el.cloneNode(true);
+          ghost.className += ' drag-ghost'; ghost.style.width = r.width + 'px';
+          ghost.style.left = (touchDrag.x - r.width / 2) + 'px'; ghost.style.top = (touchDrag.y - 20) + 'px';
+          document.body.append(ghost); touchDrag.ghost = ghost; el.classList.add('dragging');
+        }, 450) };
+    }, { passive: true });
+  });
+}
+document.addEventListener('touchmove', ev => {
+  if (!touchDrag) return;
+  const t = ev.touches[0];
+  if (!touchDrag.active) {
+    if (Math.hypot(t.clientX - touchDrag.x, t.clientY - touchDrag.y) > 10) { clearTimeout(touchDrag.timer); touchDrag = null; }
+    return;
+  }
+  ev.preventDefault();
+  touchDrag.ghost.style.left = (t.clientX - touchDrag.ghost.offsetWidth / 2) + 'px';
+  touchDrag.ghost.style.top = (t.clientY - 20) + 'px';
+  touchDrag.ghost.hidden = true;
+  const cell = document.elementFromPoint(t.clientX, t.clientY)?.closest('#calBody .mday, #calBody .wcol');
+  touchDrag.ghost.hidden = false;
+  if (touchDrag.over !== cell) { touchDrag.over?.classList.remove('drop'); cell?.classList.add('drop'); touchDrag.over = cell; }
+}, { passive: false });
+function endTouchDrag() {
+  if (!touchDrag) return;
+  clearTimeout(touchDrag.timer);
+  const d = touchDrag; touchDrag = null;
+  if (!d.active) return;
+  d.ghost?.remove(); d.el.classList.remove('dragging'); d.over?.classList.remove('drop');
+  suppressClick = true; setTimeout(() => { suppressClick = false; }, 400);
+  if (d.over && d.over.dataset.day !== d.el.dataset.on) moveOccurrence(d.el.dataset.event, d.el.dataset.on, d.over.dataset.day);
+}
+document.addEventListener('touchend', endTouchDrag);
+document.addEventListener('touchcancel', endTouchDrag);
+document.addEventListener('click', ev => { if (suppressClick) { ev.stopPropagation(); ev.preventDefault(); } }, true);
 
 function moveOccurrence(id, on, toDay) {
   const o = data.events.find(x => x.id === id); if (!o) return;

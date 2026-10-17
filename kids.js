@@ -10,6 +10,7 @@ const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 /* ---------- Celebration ---------- */
 function celebrate(text) {
   if (text) toast(text);
+  window.littleDaysNative?.success?.();
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const layer = document.createElement('div');
   layer.className = 'confetti'; layer.setAttribute('aria-hidden', 'true');

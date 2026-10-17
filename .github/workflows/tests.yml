@@ -17,7 +17,7 @@ jobs:
         run: npm test
       - name: Check page scripts parse
         run: |
-          for f in planner-core.js kids-core.js sync-core.js item-sync.js app.js kids.js lists.js cloud.js reminders.js sw.js; do node --check "$f"; done
+          for f in planner-core.js reminders-core.js native.js kids-core.js sync-core.js item-sync.js app.js kids.js lists.js cloud.js reminders.js sw.js; do node --check "$f"; done
           node -e "const s=require('fs').readFileSync('index.html','utf8');const m=[...s.matchAll(/<script>([\s\S]*?)<\/script>/g)];if(!m.length)throw Error('inline script missing');m.forEach(x=>new Function(x[1]));console.log('inline script OK')"
   database:
     runs-on: ubuntu-latest
