@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'index.html'
+      - 'planner-core.js'
       - 'cloud.js'
       - 'cloud-config.js'
       - 'reminders.js'

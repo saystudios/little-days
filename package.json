@@ -5,11 +5,13 @@
   "scripts": {
     "ios:sync": "node scripts/prepare-web.mjs && npx cap sync ios",
     "ios:add": "node scripts/prepare-web.mjs && npx cap add ios",
-    "ios:build": "node scripts/prepare-web.mjs && npx cap sync ios"
+    "ios:build": "node scripts/prepare-web.mjs && npx cap sync ios",
+    "test": "TZ=America/Chicago node --test && TZ=Australia/Sydney node --test && TZ=Europe/London node --test && TZ=UTC node --test"
   },
   "dependencies": {
     "@capacitor/core": "7.4.4",
-    "@capacitor/ios": "7.4.4"
+    "@capacitor/ios": "7.4.4",
+    "@supabase/supabase-js": "2.45.4"
   },
   "devDependencies": {
     "@capacitor/cli": "7.4.4"
