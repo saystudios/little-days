@@ -43,7 +43,7 @@
     <div class="brand"><svg aria-hidden="true"><use href="#logo"/></svg><span>Little Days</span></div>
     <button class="tab" data-view="today"><svg aria-hidden="true"><use href="#i-sun"/></svg><span>Today</span></button>
     <button class="tab" data-view="calendar"><svg aria-hidden="true"><use href="#i-cal"/></svg><span>Calendar</span></button>
-    <button class="tab" data-view="tasks"><svg aria-hidden="true"><use href="#i-check"/></svg><span>To-dos</span></button>
+    <button class="tab" data-view="tasks"><svg aria-hidden="true"><use href="#i-check"/></svg><span>Lists</span></button>
     <button class="tab" data-view="family"><svg aria-hidden="true"><use href="#i-heart"/></svg><span>Family</span></button>
     <button class="tab" data-view="settings"><svg aria-hidden="true"><use href="#i-gear"/></svg><span>Settings</span></button>
     <button class="btn primary add-btn" data-quick-add aria-label="Add"><svg aria-hidden="true"><use href="#i-plus"/></svg><span>Add</span></button>
@@ -112,9 +112,13 @@
 
     <!-- To-dos -->
     <section id="tasksView" data-page="tasks" class="hidden" aria-labelledby="tasksTitleH">
-      <header class="page-head"><div><h1 id="tasksTitleH">To-dos</h1><p class="sub">The little things that keep the week running.</p></div><button class="btn primary" data-add="task"><svg aria-hidden="true" width="20" height="20"><use href="#i-plus"/></svg>New to-do</button></header>
-      <div class="people" id="taskPeople" role="group" aria-label="Show to-dos for"></div>
-      <div class="card" id="tasksList"></div>
+      <header class="page-head"><div><h1 id="tasksTitleH">Lists</h1><p class="sub">To-dos, groceries, packing — shared with everyone in the family.</p></div><button class="btn primary" data-list-new><svg aria-hidden="true" width="20" height="20"><use href="#i-plus"/></svg>New list</button></header>
+      <div class="people" id="taskPeople" role="group" aria-label="Show lists for"></div>
+      <div class="lists-grid">
+        <section class="card"><div class="card-head"><h2>✅ To-dos</h2><button class="link-btn" data-add="task">Add to-do</button></div><div id="tasksList"></div></section>
+        <div id="listsArea" class="lists-area"></div>
+        <button class="btn new-list" data-list-new>＋ New list</button>
+      </div>
     </section>
 
     <!-- Family -->
@@ -154,7 +158,7 @@
   <button class="tab" data-view="today"><svg aria-hidden="true"><use href="#i-sun"/></svg><span>Today</span></button>
   <button class="tab" data-view="calendar"><svg aria-hidden="true"><use href="#i-cal"/></svg><span>Calendar</span></button>
   <button class="fab" data-quick-add aria-label="Add activity, to-do or child"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>
-  <button class="tab" data-view="tasks"><svg aria-hidden="true"><use href="#i-check"/></svg><span>To-dos</span></button>
+  <button class="tab" data-view="tasks"><svg aria-hidden="true"><use href="#i-check"/></svg><span>Lists</span></button>
   <button class="tab" data-view="family"><svg aria-hidden="true"><use href="#i-heart"/></svg><span>Family</span></button>
 </nav>
 
@@ -166,6 +170,9 @@
 <script src="./kids-core.js"></script>
 <script src="./app.js"></script>
 <script src="./kids.js"></script>
+<script src="./lists.js"></script>
+<script src="./sync-core.js"></script>
+<script src="./item-sync.js"></script>
 <script src="./cloud-config.js"></script>
 <script src="./cloud.js"></script>
 <script src="./reminders.js"></script>

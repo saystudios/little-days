@@ -66,6 +66,9 @@ do $$ begin
 end $$;
 
 -- Saves are stamped by the server and must be well formed ------------------
+-- (Parents can no longer update this backup document once item sync is on,
+-- so these checks run as the database owner.)
+reset role;
 do $$ declare before timestamptz; after timestamptz; rejected boolean := false; begin
   select updated_at into before from public.family_planners;
   update public.family_planners set content = '{"kids":[],"events":[{"id":"e2"}],"tasks":[]}',
@@ -175,4 +178,4 @@ end $$;
 reset role;
 
 \o
-\echo ALL DATABASE TESTS PASSED
+\echo security tests passed

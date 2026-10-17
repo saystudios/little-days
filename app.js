@@ -220,8 +220,9 @@ function renderTasks() {
   ].filter(g => g[1].length);
   groups.forEach(g => g[1].sort((a, b) => (a.due || '').localeCompare(b.due || '')));
   $('tasksList').innerHTML = groups.length
-    ? groups.map(([title, items]) => `<h2 class="group-title">${title}</h2>${items.map(todoRow).join('')}`).join('')
+    ? groups.map(([title, items]) => `<h3 class="group-title">${title}</h3>${items.map(todoRow).join('')}`).join('')
     : '<p class="empty">No to-dos yet. Add one for the family or for a child.</p>';
+  if (typeof renderLists === 'function') renderLists();
   bindItems();
 }
 

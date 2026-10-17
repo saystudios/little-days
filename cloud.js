@@ -56,6 +56,7 @@
   const client = lib.createClient(cfg.url, cfg.anonKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: isWeb } });
   let user = null, family = null, queueTimer = null, pollTimer = null, liveChannel = null;
   let loading = false, dirty = false, busy = false, lastVersion = null;
+  let engine = null;   // per-item sync (after the 2026-10-18 database update); null = whole-planner mode
 
   const snapshot = () => { try { return JSON.parse(localStorage.getItem(STORE) || 'null'); } catch { return null; } };
 
@@ -96,14 +97,63 @@
     finally { busy = false; }
   }
 
-  window.littleDaysSync = { queue() { if (!family || loading) return; dirty = true; status('Saving…'); clearTimeout(queueTimer); queueTimer = setTimeout(upload, 900); } };
-  window.addEventListener('online', () => { if (family && dirty && !busy) upload(); });
+  window.littleDaysSync = {
+    queue() {
+      if (!family || loading) return;
+      if (engine) return engine.queue();
+      dirty = true; status('Saving…'); clearTimeout(queueTimer); queueTimer = setTimeout(upload, 900);
+    },
+    pending: () => engine?.pending() || 0
+  };
+  window.addEventListener('online', () => { if (family && !engine && dirty && !busy) upload(); });
 
-  function stopSync() {
+  function stopSync(forget) {
     clearInterval(pollTimer); pollTimer = null;
     clearTimeout(queueTimer); queueTimer = null;
     if (liveChannel) { client.removeChannel(liveChannel); liveChannel = null; }
+    if (engine) { forget ? engine.forget() : engine.stop(); engine = null; }
     family = null; dirty = false; lastVersion = null;
+  }
+
+  /* Use per-item sync when the database has it; otherwise the original
+     whole-planner sync, so this version works before and after the update. */
+  async function hasItemSync() {
+    if (!window.LittleDaysItemSync) return false;
+    const { error } = await client.from('planner_items').select('kind').eq('family_id', family).limit(1);
+    if (!error) return true;
+    if (/does not exist|schema cache|42P01|PGRST205/i.test((error.code || '') + ' ' + error.message)) return false;
+    throw error;
+  }
+
+  async function startItemSync() {
+    engine = LittleDaysItemSync.create({
+      client, family,
+      getData: () => data,
+      setData: d => { loading = true; try { data = d; localStorage.setItem(STORE, JSON.stringify(data)); render(); } finally { loading = false; } },
+      onChange: d => { loading = true; try { localStorage.setItem(STORE, JSON.stringify(d)); render(); } finally { loading = false; } },
+      onStatus: status,
+      onNotice: (m, isError) => { const text = typeof m === 'string' ? m : friendly(m); msg(text, isError); if (!isError && typeof toast === 'function') toast(text); }
+    });
+    await engine.start();
+  }
+
+  async function startBlobSync() {
+    try { dirty = false; await readCloud(); status('☁️ Synced'); msg(''); }
+    catch (e) { status('⚠️ Not synced'); msg(friendly(e), true); }
+    if (liveChannel) client.removeChannel(liveChannel);
+    liveChannel = client.channel('family-' + family).on('postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'family_planners', filter: 'family_id=eq.' + family },
+      async payload => {
+        if (dirty || busy || queueTimer) return msg('Another parent changed the planner; it will refresh after your changes save.');
+        if (payload.new?.updated_at === lastVersion) return;
+        try { await readCloud(); status('☁️ Synced'); } catch (e) { msg(friendly(e), true); }
+      }).subscribe();
+    clearInterval(pollTimer);
+    pollTimer = setInterval(async () => {
+      if (document.visibilityState !== 'visible') return;
+      if (dirty && !busy && !queueTimer) return upload();
+      if (!queueTimer && !dirty && !busy) { try { await readCloud(); } catch { /* retried next tick */ } }
+    }, 30000);
   }
 
   /* Sign in with a 6-digit email code. Codes work inside the iPhone app,
@@ -208,34 +258,21 @@
       if (!confirm('Leave this family? The planner stays on this device, but it will stop syncing.')) return;
       const { error } = await client.rpc('leave_family', { fid: family });
       if (error) return msg(friendly(error), true);
-      stopSync(); chooseFamilyUI(); msg('You left the family. Your planner is still on this device.');
+      stopSync(true); chooseFamilyUI(); msg('You left the family. Your planner is still on this device.');
     });
     $('#cloudDelete').onclick = ev => busyButton(ev.target, async () => {
       const typed = prompt('This permanently deletes your Little Days account and removes you from your family. If you are the only parent, the shared planner is deleted from the cloud too.\n\nType DELETE to confirm.');
       if (typed?.trim().toUpperCase() !== 'DELETE') return msg('Account not deleted.');
       const { error } = await client.rpc('delete_account');
       if (error) return msg(friendly(error), true);
-      stopSync(); await client.auth.signOut(); user = null;
+      stopSync(true); await client.auth.signOut(); user = null;
       loginUI(); msg('Your account has been deleted. The planner on this device was kept; use "Reset planner on this device" below to remove it too.');
     });
 
-    try { dirty = false; await readCloud(); status('☁️ Synced'); msg(''); }
-    catch (e) { status('⚠️ Not synced'); msg(friendly(e), true); }
-
-    if (liveChannel) client.removeChannel(liveChannel);
-    liveChannel = client.channel('family-' + family).on('postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'family_planners', filter: 'family_id=eq.' + family },
-      async payload => {
-        if (dirty || busy || queueTimer) return msg('Another parent changed the planner; it will refresh after your changes save.');
-        if (payload.new?.updated_at === lastVersion) return;
-        try { await readCloud(); status('☁️ Synced'); } catch (e) { msg(friendly(e), true); }
-      }).subscribe();
-    clearInterval(pollTimer);
-    pollTimer = setInterval(async () => {
-      if (document.visibilityState !== 'visible') return;
-      if (dirty && !busy && !queueTimer) return upload();
-      if (!queueTimer && !dirty && !busy) { try { await readCloud(); } catch { /* retried next tick */ } }
-    }, 30000);
+    try {
+      if (await hasItemSync()) await startItemSync(); else await startBlobSync();
+      msg('');
+    } catch (e) { status('⚠️ Not synced'); msg(friendly(e), true); }
   }
 
   async function signOut() { stopSync(); await client.auth.signOut(); user = null; loginUI(); msg('Signed out. Your planner is still on this device.'); }
