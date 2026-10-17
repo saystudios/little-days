@@ -45,14 +45,23 @@ jobs:
       - name: Import reusable Apple signing credentials
         shell: bash
         run: |
-          for key in SIGNING_P12_BASE64 SIGNING_P12_PASSWORD SIGNING_PROFILE_BASE64; do
-            if [ -z "${!key}" ]; then echo "::error::Missing $key: add the reusable signing assets as GitHub secrets."; exit 1; fi
+          for key in SIGNING_P12_BASE64 SIGNING_P12_PASSWORD; do
+            if [ -z "${!key}" ]; then echo "::error::Missing ${key/SIGNING_P12_/APPLE_DISTRIBUTION_P12_} secret: add your existing Apple Distribution certificate (.p12) and its password as GitHub secrets."; exit 1; fi
           done
           SIGN_PATH="$RUNNER_TEMP/apple-signing"
           mkdir -p "$SIGN_PATH"
           printf '%s' "$SIGNING_P12_BASE64" | base64 --decode > "$SIGN_PATH/distribution.p12"
-          printf '%s' "$SIGNING_PROFILE_BASE64" | base64 --decode > "$SIGN_PATH/app.mobileprovision"
-          openssl pkcs12 -in "$SIGN_PATH/distribution.p12" -passin env:SIGNING_P12_PASSWORD -noout >/dev/null
+          # Read the certificate (older .p12 exports need -legacy on OpenSSL 3).
+          p12_cert() { openssl pkcs12 -in "$SIGN_PATH/distribution.p12" -passin env:SIGNING_P12_PASSWORD -nokeys -clcerts "$@" 2>/dev/null; }
+          CERT_PEM="$(p12_cert || p12_cert -legacy)" || true
+          if [ -z "$CERT_PEM" ]; then echo "::error::Couldn't open the .p12 certificate. Check APPLE_DISTRIBUTION_P12_BASE64 and APPLE_DISTRIBUTION_P12_PASSWORD."; exit 1; fi
+          if [ -n "$SIGNING_PROFILE_BASE64" ]; then
+            printf '%s' "$SIGNING_PROFILE_BASE64" | base64 --decode > "$SIGN_PATH/app.mobileprovision"
+          else
+            # No profile secret: get one from App Store Connect for the same certificate.
+            CERT_SERIAL="$(printf '%s\n' "$CERT_PEM" | openssl x509 -noout -serial)" \
+              OUT="$SIGN_PATH/app.mobileprovision" node .github/scripts/app-store-profile.mjs
+          fi
           security cms -D -i "$SIGN_PATH/app.mobileprovision" > "$SIGN_PATH/profile.plist"
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$SIGN_PATH/profile.plist")
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$SIGN_PATH/profile.plist")

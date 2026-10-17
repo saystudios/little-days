@@ -18,14 +18,15 @@ Required GitHub Actions secrets (Settings → Secrets and variables → Actions)
 | `ASC_KEY_P8` | Full text of the `AuthKey_XXXX.p8` file, including the BEGIN/END lines |
 | `APPLE_DISTRIBUTION_P12_BASE64` | Your existing Apple Distribution certificate exported as .p12, base64-encoded |
 | `APPLE_DISTRIBUTION_P12_PASSWORD` | Password for that .p12 |
-| `APP_STORE_PROFILE_BASE64` | App Store provisioning profile for `com.saystudios.littledays`, base64-encoded |
+| `APP_STORE_PROFILE_BASE64` | *Optional.* App Store provisioning profile for `com.saystudios.littledays`, base64-encoded. If it's not set, the build gets one from App Store Connect with the API key (see below). |
 
 Encode a file on a Mac with `base64 -i file.p12 | pbcopy` and paste it as the secret value.
 
 Before the first upload:
 1. Register the explicit App ID `com.saystudios.littledays` at developer.apple.com → Identifiers.
-2. Create the App Store provisioning profile for that App ID using your existing distribution certificate.
-3. Create the Little Days app record in App Store Connect with the same bundle ID.
+2. Create the Little Days app record in App Store Connect with the same bundle ID.
+
+**Provisioning profile.** Without the `APP_STORE_PROFILE_BASE64` secret, each build finds the distribution certificate from the .p12 in App Store Connect (by serial number) and reuses a valid App Store profile for `com.saystudios.littledays` that includes it, or creates one if there isn't one (`.github/scripts/app-store-profile.mjs`). It never creates or revokes certificates and never registers App IDs. The API key needs the Admin or App Manager role for this. To pin a specific profile instead, add it as `APP_STORE_PROFILE_BASE64`.
 
 The build number is the workflow run number; the version comes from the run form. The workflow declares `ITSAppUsesNonExemptEncryption = false` because the app only uses standard HTTPS.
 
