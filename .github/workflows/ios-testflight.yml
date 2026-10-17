@@ -33,11 +33,20 @@ jobs:
         shell: bash
         run: |
           # App Store Connect only accepts builds made with the iOS 26 SDK or later.
-          XC=$(ls -d /Applications/Xcode_2[6-9]*.app /Applications/Xcode_[3-9][0-9]*.app 2>/dev/null | grep -v -i beta | sort -V | tail -n 1)
-          if [ -z "$XC" ]; then echo "::error::No Xcode 26 or later on this runner."; ls -d /Applications/Xcode*.app; exit 1; fi
+          shopt -s nullglob
+          XC=""
+          for app in /Applications/Xcode_*.app; do
+            v="${app#/Applications/Xcode_}"; v="${v%.app}"
+            case "$v" in *[Bb]eta*|*RC*) continue;; esac
+            major="${v%%.*}"
+            [[ "$major" =~ ^[0-9]+$ ]] && [ "$major" -ge 26 ] || continue
+            if [ -z "$XC" ] || [ "$(printf '%s\n%s\n' "$best" "$v" | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)" = "$v" ]; then XC="$app"; best="$v"; fi
+          done
+          if [ -z "$XC" ]; then echo "::error::No Xcode 26 or later on this runner. Found: $(echo /Applications/Xcode*.app)"; exit 1; fi
+          echo "Using $XC"
           sudo xcode-select -s "$XC/Contents/Developer"
           xcodebuild -version
-          xcodebuild -showsdks | grep -i iphoneos
+          xcodebuild -showsdks | grep -i iphoneos || true
       - name: Confirm signing secrets exist
         shell: bash
         run: |
