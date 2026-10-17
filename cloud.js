@@ -14,14 +14,14 @@
   panel.className = 'panel';
   panel.setAttribute('aria-live', 'polite');
   mount.append(panel);
-  const pill = document.getElementById('syncPill');
-  if (pill) pill.onclick = () => typeof setView === 'function' && setView('settings');
+  const pills = [...document.querySelectorAll('#syncPill, [data-sync-pill]')];
+  pills.forEach(p => { p.onclick = () => typeof setView === 'function' && setView('settings'); });
 
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const $ = sel => panel.querySelector(sel);
   const show = html => { panel.innerHTML = '<h3>☁️ Family sync</h3>' + html + '<p class="cloud-msg" id="cloudMessage"></p>'; };
   const msg = (text, isError) => { const m = $('#cloudMessage'); if (m) { m.textContent = text || ''; m.classList.toggle('error', !!isError); } };
-  const status = (text) => { if (!pill) return; pill.hidden = !text; pill.textContent = text || ''; };
+  const status = (text) => pills.forEach(p => { p.hidden = !text; p.textContent = text || ''; });
   const busyButton = async (btn, fn) => { btn.disabled = true; try { await fn(); } finally { btn.disabled = false; } };
   const friendly = e => {
     const m = e?.message || String(e);

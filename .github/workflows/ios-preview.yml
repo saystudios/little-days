@@ -6,6 +6,8 @@ on:
     paths:
       - 'index.html'
       - 'planner-core.js'
+      - 'app.js'
+      - 'styles.css'
       - 'cloud.js'
       - 'cloud-config.js'
       - 'reminders.js'
