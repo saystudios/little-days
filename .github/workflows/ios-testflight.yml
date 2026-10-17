@@ -154,7 +154,12 @@ jobs:
           <key>manageAppVersionAndBuildNumber</key><false/>
           </dict></plist>
           EOF
-          xcodebuild -exportArchive "${ALLOW[@]}" -archivePath "$RUNNER_TEMP/LittleDays.xcarchive" -exportPath "$RUNNER_TEMP/export" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -authenticationKeyPath "$RUNNER_TEMP/private_keys/AuthKey_$ASC_KEY_ID.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          set -o pipefail
+          xcodebuild -exportArchive "${ALLOW[@]}" -archivePath "$RUNNER_TEMP/LittleDays.xcarchive" -exportPath "$RUNNER_TEMP/export" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -authenticationKeyPath "$RUNNER_TEMP/private_keys/AuthKey_$ASC_KEY_ID.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" 2>&1 | tee "$RUNNER_TEMP/export.log" || {
+            # Surface Apple's reasons as annotations so they show on the run summary.
+            grep -iE 'error|fail|not |no |requires|denied|cannot|could' "$RUNNER_TEMP/export.log" | grep -v '^\s*$' | sort -u | head -n 8 | while IFS= read -r line; do echo "::error::${line:0:900}"; done
+            exit 1
+          }
       - name: Clean up temporary signing files
         if: always()
         shell: bash
