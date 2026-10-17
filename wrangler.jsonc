@@ -1,0 +1,9 @@
+// Cloudflare Workers deploy for the Little Days website (static files only).
+// .assetsignore keeps iOS, tests, tooling and node_modules out of the upload.
+{
+  "name": "little-days",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "."
+  }
+}
