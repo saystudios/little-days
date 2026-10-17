@@ -15,3 +15,5 @@ grant usage on schema public to anon, authenticated;
 -- Supabase gives API roles table privileges by default; RLS does the filtering.
 alter default privileges in schema public grant all on tables to anon, authenticated;
 alter default privileges in schema public grant all on sequences to anon, authenticated;
+-- ...and EXECUTE on new functions to both anon and authenticated.
+alter default privileges in schema public grant execute on functions to anon, authenticated;
