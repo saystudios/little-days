@@ -8,7 +8,7 @@ on:
         default: '1.0'
 jobs:
   testflight:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 65
     env:
       APP_ID: com.saystudios.littledays
@@ -29,6 +29,24 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Use the newest Xcode 26 or later
+        shell: bash
+        run: |
+          # App Store Connect only accepts builds made with the iOS 26 SDK or later.
+          shopt -s nullglob
+          XC=""
+          for app in /Applications/Xcode_*.app; do
+            v="${app#/Applications/Xcode_}"; v="${v%.app}"
+            case "$v" in *[Bb]eta*|*RC*) continue;; esac
+            major="${v%%.*}"
+            [[ "$major" =~ ^[0-9]+$ ]] && [ "$major" -ge 26 ] || continue
+            if [ -z "$XC" ] || [ "$(printf '%s\n%s\n' "$best" "$v" | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)" = "$v" ]; then XC="$app"; best="$v"; fi
+          done
+          if [ -z "$XC" ]; then echo "::error::No Xcode 26 or later on this runner. Found: $(echo /Applications/Xcode*.app)"; exit 1; fi
+          echo "Using $XC"
+          sudo xcode-select -s "$XC/Contents/Developer"
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i iphoneos || true
       - name: Confirm signing secrets exist
         shell: bash
         run: |
@@ -42,12 +60,17 @@ jobs:
           npx cap add ios
           npm run ios:assets
           npx cap sync ios
-      - name: Import reusable Apple signing credentials
+      - name: Choose signing (saved .p12 or Apple-managed)
         shell: bash
         run: |
-          for key in SIGNING_P12_BASE64 SIGNING_P12_PASSWORD; do
-            if [ -z "${!key}" ]; then echo "::error::Missing ${key/SIGNING_P12_/APPLE_DISTRIBUTION_P12_} secret: add your existing Apple Distribution certificate (.p12) and its password as GitHub secrets."; exit 1; fi
-          done
+          if [ -z "$SIGNING_P12_BASE64" ]; then
+            # No .p12 saved: Apple signs at export with its cloud-managed certificate.
+            echo "Signing: Apple-managed (cloud) distribution certificate."
+            echo "SIGNING_MODE=cloud" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          if [ -z "$SIGNING_P12_PASSWORD" ]; then echo "::error::Missing APPLE_DISTRIBUTION_P12_PASSWORD secret."; exit 1; fi
+          echo "SIGNING_MODE=p12" >> "$GITHUB_ENV"
           SIGN_PATH="$RUNNER_TEMP/apple-signing"
           mkdir -p "$SIGN_PATH"
           printf '%s' "$SIGNING_P12_BASE64" | base64 --decode > "$SIGN_PATH/distribution.p12"
@@ -88,9 +111,14 @@ jobs:
           p.targets.find { |t| t.name == 'App' }.build_configurations.each do |c|
             c.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = ENV.fetch('APP_ID')
             c.build_settings['DEVELOPMENT_TEAM'] = ENV.fetch('TEAM_ID')
-            c.build_settings['CODE_SIGN_STYLE'] = 'Manual'
-            c.build_settings['CODE_SIGN_IDENTITY'] = 'Apple Distribution'
-            c.build_settings['PROVISIONING_PROFILE_SPECIFIER'] = ENV.fetch('PROFILE_NAME')
+            if ENV['SIGNING_MODE'] == 'cloud'
+              c.build_settings['CODE_SIGN_STYLE'] = 'Automatic'
+              c.build_settings.delete('PROVISIONING_PROFILE_SPECIFIER')
+            else
+              c.build_settings['CODE_SIGN_STYLE'] = 'Manual'
+              c.build_settings['CODE_SIGN_IDENTITY'] = 'Apple Distribution'
+              c.build_settings['PROVISIONING_PROFILE_SPECIFIER'] = ENV.fetch('PROFILE_NAME')
+            end
             c.build_settings['MARKETING_VERSION'] = ENV.fetch('VERSION')
             c.build_settings['CURRENT_PROJECT_VERSION'] = ENV.fetch('BUILD_NUMBER')
           end
@@ -110,7 +138,11 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/LittleDays.xcarchive" archive > "$RUNNER_TEMP/archive.log" 2>&1 || {
+          EXTRA=()
+          # Apple-managed signing: archive unsigned (so no development certificate is
+          # created on this runner); the app is signed for the App Store at export.
+          if [ "$SIGNING_MODE" = cloud ]; then EXTRA=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""); fi
+          xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/LittleDays.xcarchive" archive "${EXTRA[@]}" > "$RUNNER_TEMP/archive.log" 2>&1 || {
             grep -E 'error:|ARCHIVE FAILED|No such module' "$RUNNER_TEMP/archive.log" | tail -n 35 || true
             tail -n 65 "$RUNNER_TEMP/archive.log"
             exit 1
@@ -122,19 +154,30 @@ jobs:
           printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/private_keys/AuthKey_$ASC_KEY_ID.p8"
           chmod 600 "$RUNNER_TEMP/private_keys/AuthKey_$ASC_KEY_ID.p8"
           grep -q 'BEGIN PRIVATE KEY' "$RUNNER_TEMP/private_keys/AuthKey_$ASC_KEY_ID.p8" || { echo "::error::ASC_KEY_P8 must be the full contents of the AuthKey .p8 file, including the BEGIN/END lines."; exit 1; }
+          if [ "$SIGNING_MODE" = cloud ]; then
+            SIGNING_OPTS="<key>signingStyle</key><string>automatic</string>"
+            ALLOW=(-allowProvisioningUpdates)
+          else
+            SIGNING_OPTS="<key>signingStyle</key><string>manual</string><key>provisioningProfiles</key><dict><key>$APP_ID</key><string>$PROFILE_NAME</string></dict>"
+            ALLOW=()
+          fi
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0"><dict>
           <key>method</key><string>app-store-connect</string>
           <key>destination</key><string>upload</string>
-          <key>signingStyle</key><string>manual</string>
+          $SIGNING_OPTS
           <key>teamID</key><string>$TEAM_ID</string>
-          <key>provisioningProfiles</key><dict><key>$APP_ID</key><string>$PROFILE_NAME</string></dict>
           <key>manageAppVersionAndBuildNumber</key><false/>
           </dict></plist>
           EOF
-          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/LittleDays.xcarchive" -exportPath "$RUNNER_TEMP/export" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -authenticationKeyPath "$RUNNER_TEMP/private_keys/AuthKey_$ASC_KEY_ID.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          set -o pipefail
+          xcodebuild -exportArchive "${ALLOW[@]}" -archivePath "$RUNNER_TEMP/LittleDays.xcarchive" -exportPath "$RUNNER_TEMP/export" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -authenticationKeyPath "$RUNNER_TEMP/private_keys/AuthKey_$ASC_KEY_ID.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" 2>&1 | tee "$RUNNER_TEMP/export.log" || {
+            # Surface Apple's reasons as annotations so they show on the run summary.
+            grep -iE 'error|fail|not |no |requires|denied|cannot|could' "$RUNNER_TEMP/export.log" | grep -v '^\s*$' | sort -u | head -n 8 | while IFS= read -r line; do echo "::error::${line:0:900}"; done
+            exit 1
+          }
       - name: Clean up temporary signing files
         if: always()
         shell: bash
