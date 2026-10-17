@@ -561,3 +561,14 @@ body.in-kidmode .tabbar { display: none; }
   .km-steps { grid-template-columns: 1fr; }
   .km-rewards { grid-template-columns: 1fr 1fr; }
 }
+
+/* ---------- Phase 4: shared lists ---------- */
+.lists-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; align-items: start; }
+.lists-area { display: contents; }
+.add-item { margin: 0 0 6px; }
+.add-item input { min-height: 44px; }
+.done-items { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 8px; }
+.done-items summary { cursor: pointer; color: var(--ink-2); font-weight: 650; min-height: 40px; display: flex; align-items: center; }
+.new-list { min-height: 72px; border-style: dashed; border-width: 2px; border-radius: var(--r-card); }
+.group-title { font: 650 15px var(--display); color: var(--ink-2); margin: 14px 0 4px; }
+@media (max-width: 720px) { .lists-grid { grid-template-columns: 1fr; } }

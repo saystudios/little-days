@@ -23,8 +23,18 @@ Sign-in now asks for the code from the email, because email links can't open the
 
 Keep Site URL set to the production website (Authentication → URL Configuration) so links still work on the web.
 
-## How sync works today
-The whole planner is one shared document per family. Saves check that nobody else saved in between; if they did, the parent is asked to export a backup and reload instead of silently overwriting. Changes arrive live, with a 30-second fallback check. Per-item sync (so simultaneous edits merge) is planned for a later phase.
+## How sync works
+Since `20261018000000_item_sync.sql`, every activity, to-do, child, chore, routine, reward, reward request and chore/routine tick is its own row in `planner_items`. Devices send and receive single items, so a child ticking chores on a tablet while a parent edits the calendar on a phone never collide.
+
+- **Same item changed on two devices:** the newest save wins, and the device that saved second shows a short notice.
+- **Deletions** leave a "deleted" marker so every device removes the item.
+- **Offline:** changes wait in a queue on the device (kept even if the app is closed) and send when the connection returns. The status pill shows "Offline · N waiting".
+- **Live updates** arrive through Supabase Realtime, with a catch-up check every minute and whenever the app comes back to the foreground.
+- `family_planners` is kept as a read-only backup of each family's planner from before the update.
+
+**Order matters:** deploy the app version that includes item sync (it also works with the older database), then run the migration. The migration stops older app versions from saving to the old single document, so they show a sync error and reload into the new version instead of silently going out of step.
+
+Before item sync, the whole planner was one shared document; that mode is still used automatically if the item-sync migration hasn't been run yet.
 
 ## Testing the database
 `bash supabase/tests/run.sh` builds a throwaway database on any Postgres 16 (using the standard `PG*` connection variables), applies the schema and migrations and runs the security tests. The "Little Days tests" GitHub workflow runs this on every pull request.
