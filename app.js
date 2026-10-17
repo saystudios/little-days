@@ -67,12 +67,14 @@ function setView(v) {
 }
 
 function render() {
+  if (window.LittleDaysKids) LittleDaysKids.ensure(data);   // new fields for planners from older versions or the cloud
   renderPeople();
-  if (view === 'today') renderToday();
+  if (view === 'today') { renderToday(); if (typeof renderKidsToday === 'function') renderKidsToday(); }
   else if (view === 'calendar') renderCalendar();
   else if (view === 'tasks') renderTasks();
-  else if (view === 'family') renderFamily();
+  else if (view === 'family') { renderFamily(); if (typeof renderKidsFamily === 'function') renderKidsFamily(); }
   else if (view === 'settings') renderSettings();
+  if (typeof renderKidMode === 'function') renderKidMode();
 }
 
 function renderPeople() {
@@ -628,7 +630,7 @@ $('reset').onclick = () => {
 };
 
 // Keep "now" and greetings fresh while the app stays open.
-setInterval(() => { if (view === 'today' && $('scrim').classList.contains('hidden')) renderToday(); }, 60000);
+setInterval(() => { if (view === 'today' && $('scrim').classList.contains('hidden')) render(); }, 60000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') render(); });
 
 setView('today');
