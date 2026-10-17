@@ -6,14 +6,23 @@
     "ios:sync": "node scripts/prepare-web.mjs && npx cap sync ios",
     "ios:add": "node scripts/prepare-web.mjs && npx cap add ios",
     "ios:build": "node scripts/prepare-web.mjs && npx cap sync ios",
-    "test": "TZ=America/Chicago node --test && TZ=Australia/Sydney node --test && TZ=Europe/London node --test && TZ=UTC node --test"
+    "test": "TZ=America/Chicago node --test && TZ=Australia/Sydney node --test && TZ=Europe/London node --test && TZ=UTC node --test",
+    "ios:assets": "npx @capacitor/assets generate --ios --iconBackgroundColor \"#ffe3ee\" --splashBackgroundColor \"#fff8f1\" --splashBackgroundColorDark \"#1b1a2b\""
   },
   "dependencies": {
     "@capacitor/core": "7.4.4",
     "@capacitor/ios": "7.4.4",
-    "@supabase/supabase-js": "2.45.4"
+    "@supabase/supabase-js": "2.45.4",
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/haptics": "^7.0.0",
+    "@capacitor/keyboard": "^7.0.0",
+    "@capacitor/local-notifications": "^7.0.0",
+    "@capacitor/preferences": "^7.0.0",
+    "@capacitor/splash-screen": "^7.0.0",
+    "@capacitor/status-bar": "^7.0.0"
   },
   "devDependencies": {
-    "@capacitor/cli": "7.4.4"
+    "@capacitor/cli": "7.4.4",
+    "@capacitor/assets": "^3.0.5"
   }
 }

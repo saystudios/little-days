@@ -31,5 +31,14 @@ The build number is the workflow run number; the version comes from the run form
 
 `.github/scripts/asc.rb` is the old temporary-certificate script. No workflow runs it; don't run it by hand, because it revokes certificates.
 
+## What the iPhone/iPad app adds over the website
+- **Reminders that arrive when the app is closed** (Settings → Reminders): before activities, birthdays, an optional morning summary, and quiet hours. They're scheduled on the device with iOS notifications (no server needed), up to a week ahead, and refreshed whenever the planner changes or the app is opened. iOS allows 64 waiting notifications per app; Little Days uses at most 60, soonest first.
+- **Storage backup:** the planner and the sync queue are also kept in the app's native storage and restored automatically if iOS clears the web view's storage to free space.
+- Haptic taps when ticking things off, a status bar that follows light/dark mode, a launch screen, and a refresh when the app comes back to the foreground.
+- Long-press and drag to move activities in Week and Month view.
+- App icon and launch screens are generated during the build from `resources/icon.png`, `resources/splash.png` and `resources/splash-dark.png` (`npm run ios:assets`). Replace those files to change the artwork.
+
+Plugins used (installed by `npm install` in the workflows): App, Haptics, Keyboard, Local Notifications, Preferences, Splash Screen, Status Bar. No Apple Push Notification (APNs) key is needed for these reminders. Server-sent push (for example "Leo finished his chores" on a parent's phone) would need an APNs key and a small server function; it's not part of this version.
+
 ## Before App Store submission
-Sign-in uses emailed codes, which work inside the app. Still to do (later phases): native local notifications, app icon and launch screen, privacy policy and App Store privacy answers, and full iPhone/iPad layout polish.
+Phase 6 covers the privacy policy, App Store privacy answers, final device testing and TestFlight.

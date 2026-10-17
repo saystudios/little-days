@@ -16,3 +16,4 @@ wrangler.jsonc
 capacitor.config.json
 cloud-config.example.js
 *.md
+resources

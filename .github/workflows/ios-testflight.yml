@@ -40,6 +40,7 @@ jobs:
           npm install --no-audit --no-fund
           node scripts/prepare-web.mjs
           npx cap add ios
+          npm run ios:assets
           npx cap sync ios
       - name: Import reusable Apple signing credentials
         shell: bash
