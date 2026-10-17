@@ -1,11 +1,35 @@
-# Little Days iPhone preparation
+# Little Days — iPhone/iPad builds and TestFlight
 
-The website at Cloudflare remains unchanged. The new `ios-preview.yml` GitHub Action compiles a Capacitor iOS Simulator app; it does NOT upload to TestFlight and the simulator ZIP cannot be installed on a physical iPhone.
+The Cloudflare website is not affected by these workflows.
 
-1. In GitHub open **Actions → Little Days iOS build check → Run workflow**.
-2. If the simulator build passes, register a **new explicit App ID** `com.saystudios.littledays` in the Apple Developer account that will distribute Little Days. If unavailable, change `capacitor.config.json` to an App ID you own.
-3. In App Store Connect create a Little Days app tied to that App ID. Set app name, availability and privacy information.
-4. Configure GitHub Actions secrets APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8. The TestFlight workflow generates a temporary Apple Distribution certificate and Little Days App Store provisioning profile through App Store Connect. Do not put private keys in source control.
-5. Run Actions → Little Days TestFlight → Run workflow to build and upload the signed device archive. The signing automation was adapted from Say Math. Review the GitHub log and confirm processing in App Store Connect.
-6. This first package uses the existing web code and Supabase cloud connection. It is not a complete iOS-specific implementation of background push notifications. A website-open reminder cannot reliably notify after closing an iPhone app.
-7. Before submitting: test login redirects for native app deep links, remote data syncing, offline handling, safe areas, the permission flow, privacy policy, child data handling and account deletion.
+## Build check (no signing)
+**Actions → Little Days iOS build check → Run workflow** compiles a Simulator build. It also runs automatically when app files change on `main`. The simulator ZIP cannot be installed on a real iPhone.
+
+## TestFlight
+**Actions → Little Days TestFlight → Run workflow** builds a signed archive and uploads it to App Store Connect. It reuses one distribution certificate and profile stored as secrets — it never creates or revokes Apple certificates.
+
+Required GitHub Actions secrets (Settings → Secrets and variables → Actions):
+
+| Secret | What it is |
+|---|---|
+| `APPLE_TEAM_ID` | 10-character Team ID from developer.apple.com → Membership |
+| `ASC_KEY_ID` | App Store Connect API key ID |
+| `ASC_ISSUER_ID` | App Store Connect API issuer ID |
+| `ASC_KEY_P8` | Full text of the `AuthKey_XXXX.p8` file, including the BEGIN/END lines |
+| `APPLE_DISTRIBUTION_P12_BASE64` | Your existing Apple Distribution certificate exported as .p12, base64-encoded |
+| `APPLE_DISTRIBUTION_P12_PASSWORD` | Password for that .p12 |
+| `APP_STORE_PROFILE_BASE64` | App Store provisioning profile for `com.saystudios.littledays`, base64-encoded |
+
+Encode a file on a Mac with `base64 -i file.p12 | pbcopy` and paste it as the secret value.
+
+Before the first upload:
+1. Register the explicit App ID `com.saystudios.littledays` at developer.apple.com → Identifiers.
+2. Create the App Store provisioning profile for that App ID using your existing distribution certificate.
+3. Create the Little Days app record in App Store Connect with the same bundle ID.
+
+The build number is the workflow run number; the version comes from the run form. The workflow declares `ITSAppUsesNonExemptEncryption = false` because the app only uses standard HTTPS.
+
+`.github/scripts/asc.rb` is the old temporary-certificate script. No workflow runs it; don't run it by hand, because it revokes certificates.
+
+## Before App Store submission
+Sign-in uses emailed codes, which work inside the app. Still to do (later phases): native local notifications, app icon and launch screen, privacy policy and App Store privacy answers, and full iPhone/iPad layout polish.

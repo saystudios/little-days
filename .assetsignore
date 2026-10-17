@@ -1,0 +1,18 @@
+# Not part of the website. Cloudflare uploads everything else in this folder.
+.git
+.github
+.gitignore
+.assetsignore
+.wrangler
+node_modules
+ios
+www
+test
+supabase
+scripts
+package.json
+package-lock.json
+wrangler.jsonc
+capacitor.config.json
+cloud-config.example.js
+*.md
