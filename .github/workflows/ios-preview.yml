@@ -19,6 +19,8 @@ on:
       - 'cloud.js'
       - 'cloud-config.js'
       - 'reminders.js'
+      - 'scan-core.js'
+      - 'scan.js'
       - 'capacitor.config.json'
       - 'package.json'
       - 'scripts/**'

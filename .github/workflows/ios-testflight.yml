@@ -127,6 +127,15 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
           BUILD_NUMBER: ${{ github.run_number }}
+      - name: Camera and photo access text
+        shell: bash
+        run: |
+          # "Scan a flyer or screenshot" lets parents take or pick a photo. iOS
+          # requires these explanations or the app closes when the camera opens.
+          P=ios/App/App/Info.plist
+          set_text() { plutil -replace "$1" -string "$2" "$P"; }
+          set_text NSCameraUsageDescription "Little Days uses the camera when you scan a flyer, schedule or invitation to add its activities."
+          set_text NSPhotoLibraryUsageDescription "Little Days opens your photos when you choose a screenshot or picture to scan for activities."
       - name: Declare export compliance
         shell: bash
         run: |

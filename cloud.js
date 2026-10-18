@@ -108,6 +108,22 @@
   };
   window.addEventListener('online', () => { if (family && !engine && dirty && !busy) upload(); });
 
+  /* Photo scanning (scan.js) runs on the server, so it needs a signed-in parent in a family. */
+  window.littleDaysCloud = {
+    canScan: () => !!(user && family),
+    async scan(body) {
+      const { data: res, error } = await client.functions.invoke('scan-event', { body });
+      if (!error) return res;
+      let detail = null;
+      try { detail = await error.context?.json?.(); } catch { /* not JSON */ }
+      const status = error.context?.status;
+      const e = new Error(detail?.error?.message
+        || (status === 404 ? 'Scanning isn’t set up yet.' : status ? 'Scanning isn’t available right now.' : 'No connection right now. Try again when you’re back online.'));
+      e.code = detail?.error?.code || (status ? 'server' : 'network');
+      throw e;
+    }
+  };
+
   function stopSync(forget) {
     clearInterval(pollTimer); pollTimer = null;
     clearTimeout(queueTimer); queueTimer = null;
