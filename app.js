@@ -486,8 +486,9 @@ function openQuickAdd() {
     <button class="c1" data-q="event"><span class="q-icon" aria-hidden="true">🗓️</span><span>Activity<small>Practice, lesson, appointment, party</small></span></button>
     <button class="c2" data-q="task"><span class="q-icon" aria-hidden="true">✅</span><span>To-do<small>Something to remember or get done</small></span></button>
     <button class="c0" data-q="kid"><span class="q-icon" aria-hidden="true">💗</span><span>Child<small>Add someone to the family</small></span></button>
+    ${window.littleDaysScan ? `<button class="c3" data-q="scan"><span class="q-icon" aria-hidden="true">📸</span><span>Scan a flyer or screenshot<small>Fill in activities from a photo</small></span></button>` : ''}
   </div><div class="sheet-actions"><span></span><div class="end"><button class="btn" type="button" data-close>Cancel</button></div></div>`);
-  $('sheet').querySelectorAll('[data-q]').forEach(b => b.onclick = () => openEditor(b.dataset.q));
+  $('sheet').querySelectorAll('[data-q]').forEach(b => b.onclick = () => b.dataset.q === 'scan' ? window.littleDaysScan.start() : openEditor(b.dataset.q));
   $('sheet').querySelector('[data-close]').onclick = closeSheet;
 }
 
@@ -545,28 +546,31 @@ function readEventForm(form) {
   return out;
 }
 
-function openEditor(mode, id = null, day = null, on = null, time = null) {
+/* draft: values to start a new activity with (e.g. read from a scanned photo). */
+function openEditor(mode, id = null, day = null, on = null, time = null, draft = null) {
   const list = mode === 'event' ? 'events' : mode === 'task' ? 'tasks' : 'kids';
   const o = id ? data[list].find(x => x.id === id) : null;
   if (id && !o) return;
   const noun = { event: 'activity', task: 'to-do', kid: 'child' }[mode];
   const series = mode === 'event' && o && core.ruleOf(o).repeat !== 'none';
   const occ = series && core.isDateKey(on) ? on : null;     // which day of the series was tapped
-  let html = `<form id="editForm" novalidate><h2 id="sheetTitle">${o ? 'Edit' : 'New'} ${noun}</h2>`;
+  const v = o || (mode === 'event' ? draft : null);       // values shown in the form
+  let html = `<form id="editForm" novalidate><h2 id="sheetTitle">${o ? 'Edit' : draft ? 'Check' : 'New'} ${noun}</h2>`;
   if (mode === 'event') {
-    const defaultKid = o ? o.kidId : (filter !== 'all' ? filter : '');
-    html += field('What’s happening?', 'fTitle', `<input id="fTitle" name="title" maxlength="90" required placeholder="Soccer practice" value="${esc(o?.title)}" autofocus>`)
+    if (draft && !o) html += `<p class="note scan-note">${icon('i-pencil', 14)} Filled in from your photo. Check the details, then tap Save.</p>`;
+    const defaultKid = v ? v.kidId : (filter !== 'all' ? filter : '');
+    html += field('What’s happening?', 'fTitle', `<input id="fTitle" name="title" maxlength="90" required placeholder="Soccer practice" value="${esc(v?.title)}" autofocus>`)
       + `<div class="two">${field('Who', 'fKid', `<select id="fKid" name="kidId">${kidOptions(defaultKid)}</select>`)}
-        ${field('Type', 'fCat', `<select id="fCat" name="category">${CATEGORIES.map(([c, i]) => `<option value="${c}"${(o?.category || 'Other') === c ? ' selected' : ''}>${i} ${c}</option>`).join('')}</select>`)}</div>`
-      + field('Date', 'fDate', `<input id="fDate" name="date" type="date" required value="${esc(occ || o?.date || day || todayKey())}">`)
-      + `<div class="field"><label class="switch"><input type="checkbox" id="fAllDay"${o && !o.time ? ' checked' : ''}><span>All day</span></label></div>`
-      + `<div class="two" id="timeRow">${field('Starts', 'fTime', `<input id="fTime" name="time" type="time" value="${esc(o?.time || time || '')}">`)}
-        ${field('Ends (optional)', 'fEnd', `<input id="fEnd" name="endTime" type="time" value="${esc(o?.endTime)}">`)}</div>`
-      + field('Repeats', 'fRep', `<select id="fRep" name="repeat">${[['none', 'Does not repeat'], ['daily', 'Daily'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['yearly', 'Yearly']].map(([v, l]) => `<option value="${v}"${core.ruleOf(o || { date: todayKey() }).repeat === v ? ' selected' : ''}>${l}</option>`).join('')}</select>`)
+        ${field('Type', 'fCat', `<select id="fCat" name="category">${CATEGORIES.map(([c, i]) => `<option value="${c}"${(v?.category || 'Other') === c ? ' selected' : ''}>${i} ${c}</option>`).join('')}</select>`)}</div>`
+      + field('Date', 'fDate', `<input id="fDate" name="date" type="date" required value="${esc(occ || v?.date || day || todayKey())}">`)
+      + `<div class="field"><label class="switch"><input type="checkbox" id="fAllDay"${v && !v.time ? ' checked' : ''}><span>All day</span></label></div>`
+      + `<div class="two" id="timeRow">${field('Starts', 'fTime', `<input id="fTime" name="time" type="time" value="${esc(v?.time || time || '')}">`)}
+        ${field('Ends (optional)', 'fEnd', `<input id="fEnd" name="endTime" type="time" value="${esc(v?.endTime)}">`)}</div>`
+      + field('Repeats', 'fRep', `<select id="fRep" name="repeat">${[['none', 'Does not repeat'], ['daily', 'Daily'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['yearly', 'Yearly']].map(([v, l]) => `<option value="${v}"${core.ruleOf(v || { date: todayKey() }).repeat === v ? ' selected' : ''}>${l}</option>`).join('')}</select>`)
       + `<div id="repeatMore"></div>`
-      + field('Where', 'fLoc', `<input id="fLoc" name="location" maxlength="120" placeholder="School gym" value="${esc(o?.location)}">`)
-      + field('Pickup / drop-off', 'fPick', `<input id="fPick" name="pickupBy" maxlength="60" placeholder="Mom, Dad, carpool" value="${esc(o?.pickupBy)}">`)
-      + field('Notes', 'fNotes', `<textarea id="fNotes" name="notes" maxlength="500" placeholder="Bring water bottle and shin guards">${esc(o?.notes)}</textarea>`);
+      + field('Where', 'fLoc', `<input id="fLoc" name="location" maxlength="120" placeholder="School gym" value="${esc(v?.location)}">`)
+      + field('Pickup / drop-off', 'fPick', `<input id="fPick" name="pickupBy" maxlength="60" placeholder="Mom, Dad, carpool" value="${esc(v?.pickupBy)}">`)
+      + field('Notes', 'fNotes', `<textarea id="fNotes" name="notes" maxlength="500" placeholder="Bring water bottle and shin guards">${esc(v?.notes)}</textarea>`);
     if (occ) html += `<div class="field scope"><span class="label" id="scopeLbl">This activity repeats. Change…</span><div class="radios" role="radiogroup" aria-labelledby="scopeLbl">
         <label><input type="radio" name="scope" value="one" checked><span>Only ${esc(fmtDay(occ, { weekday: 'short', month: 'short', day: 'numeric' }))}</span></label>
         <label><input type="radio" name="scope" value="all"><span>Every time</span></label></div></div>`;
@@ -592,7 +596,7 @@ function openEditor(mode, id = null, day = null, on = null, time = null) {
   if (mode === 'event') {
     const syncAllDay = () => { const on = $('fAllDay').checked; $('timeRow').classList.toggle('hidden', on); if (on) { form.time.value = ''; form.endTime.value = ''; } };
     $('fAllDay').onchange = syncAllDay; syncAllDay();
-    const more = () => { $('repeatMore').innerHTML = repeatOptionsHtml(form, o); const um = $('fUntilMode'); if (um) um.onchange = more; };
+    const more = () => { $('repeatMore').innerHTML = repeatOptionsHtml(form, v); const um = $('fUntilMode'); if (um) um.onchange = more; };
     form.repeat.onchange = more; form.date.onchange = more; more();
   }
 

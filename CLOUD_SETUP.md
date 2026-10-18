@@ -38,3 +38,18 @@ Before item sync, the whole planner was one shared document; that mode is still 
 
 ## Testing the database
 `bash supabase/tests/run.sh` builds a throwaway database on any Postgres 16 (using the standard `PG*` connection variables), applies the schema and migrations and runs the security tests. The "Little Days tests" GitHub workflow runs this on every pull request.
+
+## Scan a flyer or screenshot
+Parents can tap **Add → Scan a flyer or screenshot**, take or pick a photo (school flyer, sports schedule, party invite, appointment text), and Little Days fills in the activity for them to check before saving. If the photo has several dates, they get a checklist. It needs family sync, because the photo is read on the server.
+
+Setup (once per Supabase project):
+1. Run `supabase/migrations/20261020000000_scan_usage.sql` (after the earlier migrations). It adds the daily limit: **30 scans per parent per day**; change `daily_limit` in `claim_scan()` to adjust.
+2. Get an API key at console.anthropic.com and add it as an Edge Function secret named `ANTHROPIC_API_KEY` (Supabase → Edge Functions → Secrets). Never put this key in any web or app file.
+3. Deploy the function: `supabase functions deploy scan-event` (from this folder, after `supabase link`). Keep "Verify JWT" on, so only signed-in parents can call it.
+4. Optional: set a secret `SCAN_MODEL` to use a different Claude model (default `claude-haiku-5-5`).
+
+Until the function is deployed the button still shows, and parents see "Scanning isn't set up yet."
+
+**Privacy:** the photo is shrunk on the device, sent to the function, passed to Anthropic's API to read, and discarded — Little Days never stores it. The children's first names are sent with it so the AI can tell whose activity it is. Mention this in the privacy policy before release.
+
+**Cost:** roughly $0.0005 per scan with the default model, so 10,000 scans a month is about $5.
