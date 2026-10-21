@@ -23,6 +23,7 @@
     mount.innerHTML = `<div class="panel"><h3>Reminders</h3>
       <div class="field">${switchHtml('remOn', 'Remind me on this device', on)}<p class="note">${where}</p></div>
       <div id="remMore"${on ? '' : ' hidden'}>
+        <div class="field"><label for="remPreset">Quick reminder preset</label><select id="remPreset" class="ghost"><option value="">Custom</option><option value="school">School · 30 minutes before</option><option value="sports">Sports · 60 minutes before</option><option value="soon">Coming up · 10 minutes before</option></select></div>
         <div class="field">${switchHtml('remAct', 'Before activities', prefs.activities)}
           <select id="remMin" class="ghost" aria-label="How long before">${[5, 10, 15, 30, 60, 120].map(m => `<option value="${m}"${m === Number(prefs.minutes) ? ' selected' : ''}>${m < 60 ? m + ' minutes' : m / 60 + (m === 60 ? ' hour' : ' hours')} before</option>`).join('')}</select></div>
         <div class="field">${switchHtml('remBday', 'Birthdays', prefs.birthdays)}</div>
@@ -50,6 +51,13 @@
       write('ld_reminder_prefs', prefs); apply(); msg('Saved');
     };
     if (on) ['remAct', 'remMin', 'remBday', 'remSum', 'remSumTime', 'remQuiet', 'remQs', 'remQe'].forEach(id => { $(id).onchange = save; });
+    if (on) $('remPreset').onchange = e => {
+      const minutes = { school: 30, sports: 60, soon: 10 }[e.target.value];
+      if (!minutes) return;
+      $('remAct').checked = true;
+      $('remMin').value = String(minutes);
+      save();
+    };
     if (on) $('remTest').onclick = async () => {
       const ok = await testReminder();
       msg(ok ? (native() ? 'A test reminder will arrive in 5 seconds — you can close the app.' : 'Test reminder sent.') : 'Couldn’t send a test reminder.', !ok);
