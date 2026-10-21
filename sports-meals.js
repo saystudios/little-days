@@ -23,20 +23,20 @@
   const railButton=document.createElement('button');
   railButton.type='button'; railButton.className='tab sports-meals-entry'; railButton.innerHTML='<span aria-hidden="true">🍽️</span><span>Meal Planner</span>';
   nav?.insertBefore(railButton,nav.querySelector('.add-btn'));
-  const homeButton=document.createElement('button'); homeButton.type='button'; homeButton.className='sports-meals-home';
-  homeButton.innerHTML='🍽️ Meal Planner <small>Practice &amp; tournament days</small>';
-  document.querySelector('#todayView .page-head')?.after(homeButton);
+  const barButton=document.querySelector('.tabbar [data-meals-tab]');
   let active=false;
   function open(){
     active=true;
     document.querySelectorAll('[data-page]').forEach(el=>el.classList.add('hidden'));
-    panel.classList.remove('hidden'); document.querySelectorAll('.tab[data-view]').forEach(b=>b.classList.remove('active'));
-    railButton.classList.add('active'); render(); window.scrollTo(0,0);
+    panel.classList.remove('hidden');
+    document.querySelectorAll('.tab[data-view]').forEach(b=>{b.classList.remove('active');b.removeAttribute('aria-current');});
+    railButton.classList.add('active'); railButton.setAttribute('aria-current','page'); barButton?.setAttribute('aria-current','page');
+    render(); window.scrollTo(0,0);
   }
-  function close(){active=false;panel.classList.add('hidden');railButton.classList.remove('active');}
+  function close(){active=false;panel.classList.add('hidden');railButton.classList.remove('active');railButton.removeAttribute('aria-current');barButton?.removeAttribute('aria-current');}
   window.littleDaysSportsMeals={open};
   railButton.addEventListener('click',open);
-  homeButton.addEventListener('click',open);
+  barButton?.addEventListener('click',open);
   document.addEventListener('click',e=>{if(active && e.target.closest('[data-view]'))close();},true);
 
   /* ---------- Days and meal slots ---------- */

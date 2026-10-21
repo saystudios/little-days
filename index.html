@@ -28,6 +28,7 @@
     <symbol id="i-check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><path d="m8 12.3 2.8 2.7L16.2 9"/></g></symbol>
     <symbol id="i-heart" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20Z"/></symbol>
     <symbol id="i-gear" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8l1.7 2.3 2.8-.6.7 2.8 2.6 1.2-1 2.7 1 2.7-2.6 1.2-.7 2.8-2.8-.6L12 21.2l-1.7-2.3-2.8.6-.7-2.8-2.6-1.2 1-2.7-1-2.7 2.6-1.2.7-2.8 2.8.6Z"/></g></symbol>
+    <symbol id="i-bowl" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11.5h17a8.5 8.5 0 0 1-17 0Z"/><path d="M9 20.2h6M9 4.5c-.8 1 .8 2 0 3M12.5 3.5c-.8 1 .8 2 0 3M16 4.5c-.8 1 .8 2 0 3"/></g></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" d="M12 5v14M5 12h14"/></symbol>
     <symbol id="i-left" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m14.5 6-6 6 6 6"/></symbol>
     <symbol id="i-right" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m9.5 6 6 6-6 6"/></symbol>
@@ -61,7 +62,7 @@
     <section id="todayView" data-page="today" aria-labelledby="todayTitle">
       <header class="page-head">
         <div><h1 id="todayTitle">Good morning</h1><p class="sub" id="todayDate"></p></div>
-        <div class="head-actions"><button type="button" id="syncPill" class="sync-pill" hidden></button><button class="icon-btn phone-only" data-view="settings" aria-label="Settings"><svg aria-hidden="true"><use href="#i-gear"/></svg></button></div>
+        <div class="head-actions"><button type="button" id="syncPill" class="sync-pill" hidden></button><button class="icon-btn phone-only" data-view="family" aria-label="Family"><svg aria-hidden="true"><use href="#i-heart"/></svg></button><button class="icon-btn phone-only" data-view="settings" aria-label="Settings"><svg aria-hidden="true"><use href="#i-gear"/></svg></button></div>
       </header>
       <div class="people" id="todayPeople" role="group" aria-label="Show plans for"></div>
       <div class="today-grid">
@@ -165,7 +166,7 @@
   <button class="tab" data-view="calendar"><svg aria-hidden="true"><use href="#i-cal"/></svg><span>Calendar</span></button>
   <button class="fab" data-quick-add aria-label="Add activity, to-do or child"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>
   <button class="tab" data-view="tasks"><svg aria-hidden="true"><use href="#i-check"/></svg><span>Lists</span></button>
-  <button class="tab" data-view="family"><svg aria-hidden="true"><use href="#i-heart"/></svg><span>Family</span></button>
+  <button class="tab" data-meals-tab type="button"><svg aria-hidden="true"><use href="#i-bowl"/></svg><span>Meals</span></button>
 </nav>
 
 <div class="scrim hidden" id="scrim"><div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"></div></div>
