@@ -5,7 +5,9 @@
   const defaults = () => ({events:[], meals:[], checklist:{}});
   let data;
   try { data = {...defaults(), ...JSON.parse(localStorage.getItem(KEY) || '{}')}; } catch { data=defaults(); }
-  const save=()=>localStorage.setItem(KEY,JSON.stringify(data));
+  const save=()=>{localStorage.setItem(KEY,JSON.stringify(data));window.littleDaysSportsSync?.queue();};
+  window.addEventListener('little-days-sports-remote',()=>{try{data={...defaults(),...JSON.parse(localStorage.getItem(KEY)||'{}')};if(active)render();}catch{}});
+  window.addEventListener('little-days-sports-conflict',()=>alert('Another parent updated Sports & Meals at the same time. The family version was reloaded. Please check your changes.'));
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const id=()=>String(Date.now())+Math.random().toString(36).slice(2,7);
   const panel=document.createElement('section');
