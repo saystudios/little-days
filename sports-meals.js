@@ -95,7 +95,7 @@
       <form id="smEventForm" class="sm-form"><label>Activity or tournament<input name="title" placeholder="Taekwondo tournament" maxlength="90" value="${esc(e.title||'')}" required></label>
       <label>Child / athlete<input name="athlete" list="smKids" placeholder="Child's name" maxlength="60" value="${esc(e.athlete||'')}" required><datalist id="smKids">${kidNames().map(n=>`<option value="${esc(n)}">`).join('')}</datalist></label>
       <div class="sm-row"><label>Sport<select name="sport">${opt(SPORTS,e.sport||'Taekwondo')}</select></label><label>Type<select name="kind">${opt(KINDS,e.kind||'Practice')}</select></label></div>
-      <div class="sm-row"><label>Date<input name="date" type="date" value="${esc(e.date||'')}" required></label><label>Time<input name="time" type="time" value="${esc(e.time||'')}"></label></div>
+      <div class="sm-row"><label>Date<input name="date" type="date" value="${esc(e.date||tk)}" required></label><label>Time <small>(optional)</small><input name="time" type="time" value="${esc(e.time||'')}"></label></div>
       <label>Location<input name="location" maxlength="120" placeholder="Gym, field or pool" value="${esc(e.location||'')}"></label>
       <div class="sm-actions"><button class="btn primary" type="submit">${editing?'Save changes':'Add activity'}</button>${editing?'<button class="btn" type="button" id="smCancelEdit">Cancel</button>':''}</div>
       <p class="sub">Reminders: a heads-up before timed activities, and a packing reminder the evening before games and tournaments (Settings → Reminders).</p></form>
