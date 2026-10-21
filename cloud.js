@@ -124,7 +124,59 @@
     }
   };
 
+
+  // Sports and meals share the same authenticated family and database.
+  let sportsVersion=null, sportsPending=false, sportsBusy=false, sportsPoll=null;
+  const sportsKey='ld_sports_meals_v1';
+  const sportsLocal=()=>{try{return JSON.parse(localStorage.getItem(sportsKey)||'{}');}catch{return {};}};
+  async function sportsPull(){
+    if(!family||sportsPending||sportsBusy)return;
+    const {data:row,error}=await client.from('family_sports_meals').select('content,updated_at').eq('family_id',family).maybeSingle();
+    if(error)throw error;
+    if(!row){
+      const {error:seedError}=await client.from('family_sports_meals').upsert({family_id:family,content:sportsLocal()},{onConflict:'family_id',ignoreDuplicates:true});
+      if(seedError)throw seedError;
+      return sportsPull();
+    }
+    sportsVersion=row.updated_at;
+    localStorage.setItem(sportsKey,JSON.stringify(row.content));
+    window.dispatchEvent(new Event('little-days-sports-remote'));
+  }
+  async function sportsPush(){
+    if(!family||sportsBusy||!sportsPending)return;
+    sportsBusy=true;
+    try{
+      let q=client.from('family_sports_meals').update({content:sportsLocal(),updated_at:new Date().toISOString()}).eq('family_id',family);
+      if(sportsVersion)q=q.eq('updated_at',sportsVersion);
+      const {data:rows,error}=await q.select('updated_at');
+      if(error)throw error;
+      if(!rows?.length){
+        sportsPending=false;
+        await sportsPull();
+        window.dispatchEvent(new Event('little-days-sports-conflict'));
+      }else{
+        sportsVersion=rows[0].updated_at;
+        sportsPending=false;
+      }
+    }catch(e){console.warn('Sports and meals sync retry:',e);}
+    finally{sportsBusy=false;}
+  }
+  async function sportsStart(){
+    clearInterval(sportsPoll);
+    await sportsPull();
+    sportsPoll=setInterval(()=>{
+      if(sportsPending)sportsPush();
+      else if(document.visibilityState==='visible')sportsPull().catch(console.warn);
+    },12000);
+  }
+  window.littleDaysSportsSync={
+    queue(){if(!family)return;sportsPending=true;sportsPush();},
+    connected(){return !!family;}
+  };
+  window.addEventListener('online',()=>{if(sportsPending)sportsPush();else if(family)sportsPull().catch(console.warn);});
+
   function stopSync(forget) {
+    clearInterval(sportsPoll); sportsPoll=null; sportsVersion=null; sportsPending=false;
     clearInterval(pollTimer); pollTimer = null;
     clearTimeout(queueTimer); queueTimer = null;
     if (liveChannel) { client.removeChannel(liveChannel); liveChannel = null; }
@@ -311,6 +363,7 @@
     });
 
     try {
+      await sportsStart();
       if (await hasItemSync()) await startItemSync(); else await startBlobSync();
       msg('');
     } catch (e) { status('⚠️ Not synced'); msg(friendly(e), true); }
