@@ -42,6 +42,8 @@ jobs:
           npx cap add ios
           npm run ios:assets
           npx cap sync ios
+      - name: Verify iOS bundle (web files and native plugins)
+        run: node .github/scripts/verify-ios-bundle.mjs
       - name: Compile iOS Simulator
         run: |
           set -o pipefail
