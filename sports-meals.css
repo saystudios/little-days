@@ -11,3 +11,26 @@
 .sm-form input[type=date],.sm-form input[type=time]{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;min-height:46px;line-height:1.3;text-align:left}
 .sm-form input[type=date]::-webkit-date-and-time-value,.sm-form input[type=time]::-webkit-date-and-time-value{text-align:left;margin:0}.sm-item-actions{display:flex;gap:6px;flex-shrink:0}.sm-past summary{cursor:pointer;font-weight:700;padding:12px 0;color:var(--muted,#81778e)}.sm-form textarea{box-sizing:border-box;width:100%;padding:11px 12px;border:1px solid #d8d0e5;border-radius:12px;background:var(--card,#fff);color:inherit;font:inherit}
 @media(max-width:600px){.sm-card{padding:16px}.sports-meals-entry{display:none}.sports-meals-home{display:block}}
+/* Meal planner */
+.sports-meals-home small{display:block;font-weight:600;font-size:13px;opacity:.8;margin-top:2px}
+.mp-week{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:14px;margin:14px 0 16px}
+.mp-day{padding:16px}.mp-day h2{font-size:18px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.mp-today{font-size:12px;font-weight:800;background:#7049e9;color:#fff;border-radius:999px;padding:3px 9px}
+.mp-practice{border-color:#bfe3d0}.mp-tournament{border-color:#f5c58a}
+.mp-types{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:10px}
+.mp-types button{min-height:44px;border:1px solid #e3d9f6;background:transparent;color:inherit;border-radius:12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mp-types button.chosen{background:#7049e9;border-color:#7049e9;color:#fff}
+.mp-tip{font-size:13px;line-height:1.4;color:var(--ink-2,#5f5670);background:var(--surface-2,#f7f2ff);border-radius:12px;padding:9px 11px;margin:0 0 8px}
+.mp-slot{display:grid;grid-template-columns:118px minmax(0,1fr);gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line,#eee7fa)}
+.mp-slot-name{font-size:13px;font-weight:750;color:var(--ink-2,#5f5670)}
+.mp-slot-meals{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+.mp-meal{display:inline-flex;align-items:center;gap:6px;background:var(--surface-2,#f4eeff);border-radius:10px;padding:6px 6px 6px 10px;font-size:14px;font-weight:650;max-width:100%}
+.mp-meal small{font-weight:500;opacity:.7}
+.mp-meal button{border:0;background:transparent;color:#6541bc;min-width:32px;min-height:32px;border-radius:8px;cursor:pointer;font-size:14px}
+.mp-pick,.mp-recipe-day{width:100%;min-height:44px;border:1px dashed #cdbff0;background:transparent;color:#6541bc;border-radius:12px;padding:0 10px;font:inherit;font-size:16px;font-weight:650}
+.mp-more{margin-top:14px}.mp-more>summary{cursor:pointer;font-weight:800;font-size:17px;list-style-position:inside;min-height:28px}
+.mp-more[open]>summary{margin-bottom:12px}
+.mp-count{font-size:13px;font-weight:650;color:var(--ink-3,#8a8199);margin-left:6px}
+.mp-steps{font-size:13px;opacity:.85;white-space:pre-line}
+.sm-check small{opacity:.7}
+@media(max-width:600px){.mp-slot{grid-template-columns:96px minmax(0,1fr)}}

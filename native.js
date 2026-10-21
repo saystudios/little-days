@@ -13,11 +13,31 @@
   window.littleDaysNative = api;
   if (!isNative) return;
 
-  const plugin = name => { try { return Cap.registerPlugin(name); } catch { return null; } };
+  /* Little Days doesn't bundle @capacitor/core, so window.Capacitor is the bare
+     iOS bridge: it has no registerPlugin(). Build each plugin from the bridge's
+     own list of native plugins (PluginHeaders) instead. */
+  const plugin = name => {
+    if (typeof Cap.registerPlugin === 'function') { try { return Cap.registerPlugin(name); } catch { /* fall through */ } }
+    const header = (Cap.PluginHeaders || []).find(h => h.name === name);
+    if (!header || typeof Cap.nativePromise !== 'function') return null;
+    const promises = new Set(header.methods.filter(m => m.rtype === 'promise').map(m => m.name));
+    return new Proxy({}, { get(_, prop) {
+      if (typeof prop !== 'string' || prop === 'then') return undefined;
+      if (prop === 'addListener') return (eventName, cb) => {
+        const callbackId = Cap.nativeCallback(name, 'addListener', { eventName }, cb);
+        return Promise.resolve({ remove: async () => Cap.nativeCallback(name, 'removeListener', { eventName, callbackId: await callbackId }, cb) });
+      };
+      if (promises.has(prop)) return opts => Cap.nativePromise(name, prop, opts || {});
+      return (opts, cb) => Cap.nativeCallback(name, prop, opts || {}, cb);
+    } });
+  };
   const Prefs = plugin('Preferences'), Notes = plugin('LocalNotifications'), Haptics = plugin('Haptics'),
     StatusBar = plugin('StatusBar'), Splash = plugin('SplashScreen'), App = plugin('App'), Keyboard = plugin('Keyboard'),
     Launcher = plugin('AppLauncher');
   const has = name => { try { return Cap.isPluginAvailable ? Cap.isPluginAvailable(name) : true; } catch { return true; } };
+  /* The app is a native app on iPhone/iPad: no pinch-zoom, and no automatic
+     zoom when tapping a text field (iOS zooms into fields under 16px). */
+  document.querySelector('meta[name=viewport]')?.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover');
   const quiet = p => p?.catch?.(() => {});
   document.documentElement.classList.add('native');
 

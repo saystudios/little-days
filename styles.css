@@ -601,3 +601,6 @@ html.native body { -webkit-tap-highlight-color: transparent; }
 /* Keep a little breathing room when the calendar scrolls under the iOS status bar. */
 html.native #calendarView { scroll-margin-top: calc(var(--safe-t) + 20px); }
 html.native .dayview { padding-top: 24px; }
+/* iPhone/iPad app: 16px+ fields so iOS doesn't zoom in when one is tapped. */
+html.native input:not([type=checkbox]):not([type=radio]), html.native select, html.native textarea { font-size: max(16px, 1em); }
+html.native { touch-action: manipulation; }

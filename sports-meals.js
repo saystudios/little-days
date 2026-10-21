@@ -1,136 +1,105 @@
-/* Little Days Sports & Meals: family-synced planning, recipes and grocery lists. */
+/* Little Days Meal Planner: a weekly plan built around practice and
+   tournament days, with recipes and a grocery list. Family-synced.
+   (Stored under the old Sports & Meals key so saved meals, recipes and lists
+   carry over; older sports entries are kept untouched but no longer shown.) */
 (() => {
   'use strict';
   const KEY = 'ld_sports_meals_v1';
-  const defaults = () => ({events:[], meals:[], checklist:{}, preferences:{cuisines:['Korean','Vietnamese','American'],allergies:[],servings:4}, groceryChecked:{},customRecipes:[]});
+  const defaults = () => ({events:[], meals:[], checklist:{}, dayTypes:{}, preferences:{cuisines:['Korean','Vietnamese','American'],allergies:[],servings:4}, groceryChecked:{}, customRecipes:[]});
   let data;
-  try { data = {...defaults(), ...JSON.parse(localStorage.getItem(KEY) || '{}')}; } catch { data=defaults(); }
-  const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(data));}catch{alert('Could not save on this device. Free up space and try again.');}window.littleDaysSportsSync?.queue();window.dispatchEvent(new Event('little-days-sports-changed'));window.dispatchEvent(new Event('littledays:saved'));};
-  window.addEventListener('little-days-sports-remote',()=>{try{data={...defaults(),...JSON.parse(localStorage.getItem(KEY)||'{}')};if(active)render();}catch{}});
-  window.addEventListener('little-days-sports-conflict',()=>alert('Another parent updated Sports & Meals at the same time. The family version was reloaded. Please check your changes.'));
+  const load=()=>{try{data={...defaults(),...JSON.parse(localStorage.getItem(KEY)||'{}')};}catch{data=defaults();} if(!data.dayTypes||typeof data.dayTypes!=='object')data.dayTypes={};};
+  load();
+  const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(data));}catch{alert('Could not save on this device. Free up space and try again.');}window.littleDaysSportsSync?.queue();window.dispatchEvent(new Event('littledays:saved'));};
+  window.addEventListener('little-days-sports-remote',()=>{load();if(active)render();});
+  window.addEventListener('little-days-sports-conflict',()=>alert('Another parent updated the meal plan at the same time. The family version was reloaded. Please check your changes.'));
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const id=()=>String(Date.now())+Math.random().toString(36).slice(2,7);
+
+  /* ---------- Entry points ---------- */
   const panel=document.createElement('section');
-  panel.id='sportsMealsView'; panel.className='hidden'; panel.setAttribute('aria-label','Sports and meal planning');
+  panel.id='sportsMealsView'; panel.className='hidden'; panel.setAttribute('aria-label','Meal planner');
   document.querySelector('#main')?.append(panel);
   const nav=document.querySelector('.rail');
-  const sportsButton=document.createElement('button');
-  sportsButton.type='button'; sportsButton.className='tab sports-meals-entry'; sportsButton.innerHTML='<span aria-hidden="true">🏆</span><span>Sports & Meals</span>';
-  nav?.insertBefore(sportsButton,nav.querySelector('.add-btn'));
-  const homeButton=document.createElement('button'); homeButton.type='button';homeButton.className='sports-meals-home';
-  homeButton.innerHTML='🏆 Sports & Meals';
+  const railButton=document.createElement('button');
+  railButton.type='button'; railButton.className='tab sports-meals-entry'; railButton.innerHTML='<span aria-hidden="true">🍽️</span><span>Meal Planner</span>';
+  nav?.insertBefore(railButton,nav.querySelector('.add-btn'));
+  const homeButton=document.createElement('button'); homeButton.type='button'; homeButton.className='sports-meals-home';
+  homeButton.innerHTML='🍽️ Meal Planner <small>Practice &amp; tournament days</small>';
   document.querySelector('#todayView .page-head')?.after(homeButton);
-  let active=false, mode='sports', editing=null;
-  const kidNames=()=>{try{return (window.littleDaysPlanner?.()?.kids||[]).map(k=>k.name).filter(Boolean);}catch{return [];}};
-  const KINDS=['Practice','Game','Tournament','Class','Other'];
-  const SPORTS=['Taekwondo','Soccer','Swimming','Dance','Basketball','Baseball','Gymnastics','Tennis','Other'];
-  const fmtTime=t=>{if(!/^\d{2}:\d{2}$/.test(t||''))return '';const [h,m]=t.split(':').map(Number);return new Date(2000,0,1,h,m).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});};
-  const fmtDate=d=>{const [y,m,day]=String(d||'').split('-').map(Number);return y?new Date(y,m-1,day).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}):'';};
-  const opt=(list,cur)=>list.map(x=>`<option${x===cur?' selected':''}>${esc(x)}</option>`).join('');
-  function open(which='sports') {
-    mode=which;active=true;
+  let active=false;
+  function open(){
+    active=true;
     document.querySelectorAll('[data-page]').forEach(el=>el.classList.add('hidden'));
     panel.classList.remove('hidden'); document.querySelectorAll('.tab[data-view]').forEach(b=>b.classList.remove('active'));
-    sportsButton.classList.add('active');render();
+    railButton.classList.add('active'); render(); window.scrollTo(0,0);
   }
-  function close(){active=false;editing=null;panel.classList.add('hidden');sportsButton.classList.remove('active');}
+  function close(){active=false;panel.classList.add('hidden');railButton.classList.remove('active');}
   window.littleDaysSportsMeals={open};
-  sportsButton.addEventListener('click',()=>open('sports'));
-  homeButton.addEventListener('click',()=>open('sports'));
+  railButton.addEventListener('click',open);
+  homeButton.addEventListener('click',open);
   document.addEventListener('click',e=>{if(active && e.target.closest('[data-view]'))close();},true);
-  const gear=['Uniform / dobok','Belt','Sparring gear','Headgear','Mouthguard','Water bottle','Healthy snacks','Extra clothes','Towel'];
-  function render(){
-    panel.innerHTML=`<header class="page-head"><div><h1>Sports & Meals</h1><p class="sub">A little planning makes busy days easier.</p></div></header>
-    <div class="sm-tabs"><button type="button" data-sm-tab="sports" class="${mode==='sports'?'chosen':''}">🏆 Sports planner</button><button type="button" data-sm-tab="meals" class="${mode==='meals'?'chosen':''}">🍽️ Meal planner</button></div>
-    <p class="sm-note">Meals, preferences and lists are saved locally and sync with your family when signed in.</p>
-    ${mode==='sports'?sportsHTML():mealsHTML()}`;
-    panel.querySelectorAll('[data-sm-tab]').forEach(b=>b.onclick=()=>{mode=b.dataset.smTab;render();});
-    panel.querySelector('#smEventForm')?.addEventListener('submit',addEvent);
-    panel.querySelector('#smMealForm')?.addEventListener('submit',addMeal);
-    panel.querySelector('#smSmart')?.addEventListener('click',smartPlan);
-    panel.querySelector('#smCustomRecipe')?.addEventListener('submit',e=>{
-      e.preventDefault();
-      const f=new FormData(e.currentTarget),name=String(f.get('name')||'').trim();
-      if([...recipes,...(data.customRecipes||[])].some(r=>r.name.toLowerCase()===name.toLowerCase())){alert('Recipe name already exists.');return;}
-      const ingredients=String(f.get('ingredients')||'').split(/\n|,/).map(x=>x.trim()).filter(Boolean);
-      const instructions=String(f.get('instructions')||'').trim();
-      if(!name||!ingredients.length||!instructions)return;
-      data.customRecipes=data.customRecipes||[];
-      data.customRecipes.push({name,cuisine:String(f.get('cuisine')),type:String(f.get('type')),ingredients,instructions,servings:Number(f.get('servings'))||4,allergens:[]});
-      save();render();
-    });
-    panel.querySelector('#smPremiumScan')?.addEventListener('click',()=>alert('Premium scanning is not available yet. No payment has been charged.'));
 
-    panel.querySelector('#smClearMeals')?.addEventListener('click',()=>{if(confirm('Clear all planned meals?')){data.meals=[];save();render();}});
-    panel.querySelector('#smCopyGroceries')?.addEventListener('click',()=>{
-      const list=grocery().map(([name,count])=>'- '+name+(count>1?' ('+count+' meals)':'')).join('\\n');
-      if(navigator.clipboard?.writeText)navigator.clipboard.writeText(list).then(()=>alert('Grocery list copied')).catch(()=>prompt('Copy grocery list:',list));
-      else prompt('Copy grocery list:',list);
-    });
-    panel.querySelectorAll('[data-grocery]').forEach(b=>b.onchange=()=>{data.groceryChecked=data.groceryChecked||{};data.groceryChecked[b.dataset.grocery]=b.checked;save();});
-    panel.querySelectorAll('[data-cuisine]').forEach(b=>b.onchange=()=>{const p=pref();p.cuisines=b.checked?[...new Set([...p.cuisines,b.dataset.cuisine])]:p.cuisines.filter(x=>x!==b.dataset.cuisine);save();render();});
-    panel.querySelectorAll('[data-allergen]').forEach(b=>b.onchange=()=>{const p=pref();p.allergies=b.checked?[...new Set([...p.allergies,b.dataset.allergen])]:p.allergies.filter(x=>x!==b.dataset.allergen);save();render();});
-    panel.querySelectorAll('[data-recipe-add]').forEach(b=>b.onclick=()=>{
-      const recipe=recipeFor(b.dataset.recipeAdd);
-      const day=prompt('Add to which day? (Monday–Sunday)','Monday');
-      if(!day)return;
-      const normalized=days.find(d=>d.toLowerCase()===day.trim().toLowerCase());
-      if(!normalized){alert('Please enter a weekday, such as Monday.');return;}
-      data.meals.push({id:id(),day:normalized,type:recipe.type,name:recipe.name});save();render();
-    });
-    panel.querySelectorAll('[data-delete-event]').forEach(b=>b.onclick=()=>{const ev=data.events.find(x=>x.id===b.dataset.deleteEvent);if(ev&&!confirm(`Delete “${ev.title}”?`))return;data.events=data.events.filter(x=>x.id!==b.dataset.deleteEvent);if(editing===b.dataset.deleteEvent)editing=null;save();render();});
-    panel.querySelectorAll('[data-edit-event]').forEach(b=>b.onclick=()=>{editing=b.dataset.editEvent;render();panel.querySelector('#smEventForm')?.scrollIntoView({block:'center',behavior:'smooth'});});
-    panel.querySelector('#smCancelEdit')?.addEventListener('click',()=>{editing=null;render();});
-    panel.querySelectorAll('[data-delete-meal]').forEach(b=>b.onclick=()=>{data.meals=data.meals.filter(x=>x.id!==b.dataset.deleteMeal);save();render();});
-    panel.querySelector('#smResetPack')?.addEventListener('click',()=>{data.checklist={};save();render();});
-    panel.querySelectorAll('[data-gear]').forEach(b=>b.onchange=()=>{const key=b.dataset.gear;data.checklist[key]=b.checked;save();render();});
-  }
-  function sportsHTML(){
-    const today=new Date(),tk=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-    const sorted=[...data.events].sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
-    const upcoming=sorted.filter(x=>!x.date||x.date>=tk), past=sorted.filter(x=>x.date&&x.date<tk).reverse().slice(0,10);
-    const e=editing?data.events.find(x=>x.id===editing)||{}:{};
-    const item=x=>`<div class="sm-item"><div><strong>${x.kind==='Tournament'?'🏆 ':x.kind==='Game'?'⭐ ':''}${esc(x.title)}</strong><small>${esc([x.athlete,x.sport,x.kind].filter(Boolean).join(' · '))}</small><small>📅 ${esc(fmtDate(x.date))}${x.time?' · '+esc(fmtTime(x.time)):''}${x.location?' · 📍 '+esc(x.location):''}</small></div><div class="sm-item-actions"><button type="button" data-edit-event="${esc(x.id)}" aria-label="Edit ${esc(x.title)}">Edit</button><button type="button" data-delete-event="${esc(x.id)}" aria-label="Delete ${esc(x.title)}">✕</button></div></div>`;
-    return `<div class="sm-grid"><div class="sm-card"><h2>${editing?'Edit activity':'Upcoming activities'}</h2>
-      <form id="smEventForm" class="sm-form"><label>Activity or tournament<input name="title" placeholder="Taekwondo tournament" maxlength="90" value="${esc(e.title||'')}" required></label>
-      <label>Child / athlete<input name="athlete" list="smKids" placeholder="Child's name" maxlength="60" value="${esc(e.athlete||'')}" required><datalist id="smKids">${kidNames().map(n=>`<option value="${esc(n)}">`).join('')}</datalist></label>
-      <div class="sm-row"><label>Sport<select name="sport">${opt(SPORTS,e.sport||'Taekwondo')}</select></label><label>Type<select name="kind">${opt(KINDS,e.kind||'Practice')}</select></label></div>
-      <div class="sm-row"><label>Date<input name="date" type="date" value="${esc(e.date||tk)}" required></label><label>Time <small>(optional)</small><input name="time" type="time" value="${esc(e.time||'')}"></label></div>
-      <label>Location<input name="location" maxlength="120" placeholder="Gym, field or pool" value="${esc(e.location||'')}"></label>
-      <div class="sm-actions"><button class="btn primary" type="submit">${editing?'Save changes':'Add activity'}</button>${editing?'<button class="btn" type="button" id="smCancelEdit">Cancel</button>':''}</div>
-      <p class="sub">Reminders: a heads-up before timed activities, and a packing reminder the evening before games and tournaments (Settings → Reminders).</p></form>
-      ${upcoming.length?upcoming.map(item).join(''):'<p class="sub">No upcoming activities. Add your first practice or tournament.</p>'}
-      ${past.length?`<details class="sm-past"><summary>Past activities (${past.length})</summary>${past.map(item).join('')}</details>`:''}</div>
-      <div class="sm-card"><h2>🎒 Tournament packing checklist</h2><p class="sub">Tap items as you pack.</p>
-      ${gear.map(g=>`<label class="sm-check"><input type="checkbox" data-gear="${esc(g)}" ${data.checklist[g]?'checked':''}><span>${esc(g)}</span></label>`).join('')}
-      <p class="sm-progress">${gear.filter(g=>data.checklist[g]).length} of ${gear.length} packed</p>
-      <button type="button" class="btn" id="smResetPack">Start a new packing list</button></div></div>`;
-  }
+  /* ---------- Days and meal slots ---------- */
   const days=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const todayName=()=>days[(new Date().getDay()+6)%7];
+  const DAY_TYPES=[['rest','😌 Rest'],['practice','🏃 Practice'],['tournament','🏆 Tournament']];
+  const TIPS={
+    practice:'Fuel up with an easy snack 1–2 hours before practice, then refuel with protein and carbs afterward. Bring water.',
+    tournament:'Light, familiar breakfast 2–3 hours before. Pack easy snacks and plenty of water for between matches.'
+  };
+  const BEFORE='Fuel before', AFTER='Recover after', BAG='Tournament bag';
+  const slotsFor=type=>type==='tournament'?['Breakfast',BEFORE,BAG,'Lunch',AFTER,'Dinner']
+    :type==='practice'?['Breakfast','Lunch',BEFORE,AFTER,'Dinner']:['Breakfast','Lunch','Snack','Dinner'];
+  const SLOT_ICON={Breakfast:'🍳',Lunch:'🥪',Dinner:'🍲',Snack:'🍎',[BEFORE]:'⚡',[AFTER]:'💪',[BAG]:'🎒'};
+  const ALL_TYPES=['Breakfast','Lunch','Dinner','Snack',BEFORE,AFTER,BAG];
+
+  /* ---------- Recipes ---------- */
   const recipes=[
     {name:'Bibimbap',cuisine:'Korean',type:'Dinner',ingredients:['rice','carrots','spinach','eggs','beef','sesame oil','soy sauce'],allergens:['Egg','Soy','Sesame']},
     {name:'Bulgogi rice bowls',cuisine:'Korean',type:'Dinner',ingredients:['beef','rice','onion','garlic','soy sauce','sesame oil'],allergens:['Soy','Sesame']},
     {name:'Kimchi fried rice',cuisine:'Korean',type:'Lunch',ingredients:['rice','kimchi','eggs','scallions','sesame oil'],allergens:['Egg','Sesame']},
     {name:'Kimbap',cuisine:'Korean',type:'Lunch',ingredients:['rice','seaweed sheets','carrots','spinach','eggs','sesame oil'],allergens:['Egg','Sesame']},
     {name:'Doenjang vegetable stew',cuisine:'Korean',type:'Dinner',ingredients:['doenjang soybean paste','tofu','zucchini','onion','rice'],allergens:['Soy']},
+    {name:'Rice balls (jumeokbap)',cuisine:'Korean',type:BEFORE,ingredients:['rice','seaweed sheets','sesame oil'],allergens:['Sesame']},
+    {name:'Egg rice bowl (gyeran bap)',cuisine:'Korean',type:AFTER,ingredients:['rice','eggs','soy sauce','sesame oil'],allergens:['Egg','Soy','Sesame']},
+    {name:'Mini kimbap rolls',cuisine:'Korean',type:BAG,ingredients:['rice','seaweed sheets','carrots','cucumber','sesame oil'],allergens:['Sesame']},
     {name:'Pho ga',cuisine:'Vietnamese',type:'Dinner',ingredients:['chicken','rice noodles','onion','ginger','cilantro','bean sprouts','lime'],allergens:[]},
     {name:'Banh mi',cuisine:'Vietnamese',type:'Lunch',ingredients:['baguette','chicken','cucumber','carrots','cilantro','mayonnaise'],allergens:['Wheat','Egg']},
     {name:'Fresh spring rolls',cuisine:'Vietnamese',type:'Lunch',ingredients:['rice paper','shrimp','lettuce','rice noodles','mint','cucumber'],allergens:['Shellfish']},
     {name:'Bun thit nuong',cuisine:'Vietnamese',type:'Dinner',ingredients:['pork','rice noodles','lettuce','cucumber','carrots','fish sauce'],allergens:['Fish']},
     {name:'Vietnamese chicken rice',cuisine:'Vietnamese',type:'Dinner',ingredients:['chicken','rice','cucumber','ginger','scallions'],allergens:[]},
+    {name:'Sticky rice (xoi)',cuisine:'Vietnamese',type:BEFORE,ingredients:['sticky rice','mung beans'],allergens:[]},
+    {name:'Chicken rice soup (chao ga)',cuisine:'Vietnamese',type:AFTER,ingredients:['rice','chicken','ginger','scallions'],allergens:[]},
+    {name:'Steamed buns (banh bao)',cuisine:'Vietnamese',type:BAG,ingredients:['steamed buns'],allergens:['Wheat']},
     {name:'Oatmeal and berries',cuisine:'American',type:'Breakfast',ingredients:['oats','berries','milk'],allergens:['Milk']},
-    {name:'Yogurt fruit bowl',cuisine:'American',type:'Breakfast',ingredients:['yogurt','banana','berries'],allergens:['Milk']},
+    {name:'Yogurt fruit bowl',cuisine:'American',type:'Breakfast',ingredients:['yogurt','bananas','berries'],allergens:['Milk']},
     {name:'Eggs and toast',cuisine:'American',type:'Breakfast',ingredients:['eggs','bread','oranges'],allergens:['Egg','Wheat']},
     {name:'Salmon and broccoli',cuisine:'American',type:'Dinner',ingredients:['salmon','broccoli','rice','olive oil'],allergens:['Fish']},
     {name:'Turkey wraps',cuisine:'American',type:'Lunch',ingredients:['tortillas','turkey','lettuce','tomatoes'],allergens:['Wheat']},
+    {name:'Chicken stir-fry',cuisine:'American',type:'Dinner',ingredients:['chicken','rice','broccoli','carrots','olive oil'],allergens:[]},
     {name:'Banana and pretzels',cuisine:'American',type:'Snack',ingredients:['bananas','pretzels'],allergens:['Wheat']},
     {name:'Apples and sunflower butter',cuisine:'American',type:'Snack',ingredients:['apples','sunflower butter'],allergens:[]},
-    {name:'Chicken stir-fry',cuisine:'American',type:'Dinner',ingredients:['chicken','rice','broccoli','carrots','olive oil'],allergens:[]}
+    {name:'Toast with honey and banana',cuisine:'American',type:BEFORE,ingredients:['bread','honey','bananas'],allergens:['Wheat']},
+    {name:'Banana oatmeal',cuisine:'American',type:BEFORE,ingredients:['oats','bananas','milk'],allergens:['Milk']},
+    {name:'Chocolate milk and fruit',cuisine:'American',type:AFTER,ingredients:['chocolate milk','oranges'],allergens:['Milk']},
+    {name:'Turkey and cheese roll-ups',cuisine:'American',type:AFTER,ingredients:['tortillas','turkey','cheese'],allergens:['Wheat','Milk']},
+    {name:'Orange slices and pretzels',cuisine:'American',type:BAG,ingredients:['oranges','pretzels'],allergens:['Wheat']},
+    {name:'String cheese and crackers',cuisine:'American',type:BAG,ingredients:['string cheese','crackers'],allergens:['Milk','Wheat']},
+    {name:'Nut-free trail mix',cuisine:'American',type:BAG,ingredients:['sunflower seeds','raisins','cereal'],allergens:[]},
+    {name:'Water and electrolyte drinks',cuisine:'American',type:BAG,ingredients:['water bottles','electrolyte drinks'],allergens:[]}
   ];
   const allergenNames=['Milk','Egg','Wheat','Soy','Sesame','Fish','Shellfish','Peanut','Tree nut'];
   const pref=()=>data.preferences||(data.preferences={cuisines:['Korean','Vietnamese','American'],allergies:[],servings:4});
-  const eligible=()=>[...recipes,...(data.customRecipes||[])].filter(r=>pref().cuisines.includes(r.cuisine)&&!r.allergens.some(a=>pref().allergies.includes(a)));
-  const recipeFor=name=>[...recipes,...(data.customRecipes||[])].find(r=>r.name===name);
+  const allRecipes=()=>[...recipes,...(data.customRecipes||[])];
+  const eligible=()=>allRecipes().filter(r=>pref().cuisines.includes(r.cuisine)&&!(r.allergens||[]).some(a=>pref().allergies.includes(a)));
+  const recipeFor=name=>allRecipes().find(r=>r.name===name);
+  /* Snack ideas work for the bag, and before/after fit snack slots. */
+  const fits=(r,slot)=>r.type===slot||(slot===BAG&&r.type==='Snack')||(slot==='Snack'&&(r.type===BEFORE||r.type===BAG));
+  const choicesFor=slot=>eligible().filter(r=>fits(r,slot));
+  const typeOf=day=>data.dayTypes[day]||'rest';
+  const mealsOn=(day,slot)=>data.meals.filter(m=>m.day===day&&m.type===slot);
+
+  /* ---------- Grocery list ---------- */
   const grocery=()=>{
     const items=new Map();
     for(const meal of data.meals){const recipe=recipeFor(meal.name);if(!recipe)continue;
@@ -138,51 +107,116 @@
     }
     return [...items].sort((a,b)=>a[0].localeCompare(b[0]));
   };
+
+  /* ---------- Render ---------- */
+  function render(){
+    const t=todayName();
+    const ordered=[...days.slice(days.indexOf(t)),...days.slice(0,days.indexOf(t))];
+    panel.innerHTML=`<header class="page-head"><div><h1>Meal Planner</h1><p class="sub">Tag practice and tournament days, then plan meals that keep everyone fueled.</p></div></header>
+      <div class="sm-actions"><button type="button" class="btn primary" id="smSmart">✨ Fill empty meals</button><button type="button" class="btn" id="smClearMeals">Clear week</button></div>
+      <div class="mp-week">${ordered.map(day=>dayHTML(day,day===t)).join('')}</div>
+      ${groceryHTML()}
+      <details class="sm-card mp-more"><summary>📖 Recipes</summary>${recipeHTML()}</details>
+      <details class="sm-card mp-more"><summary>✍️ Add your own recipe — free</summary>${customHTML()}</details>
+      <details class="sm-card mp-more"><summary>🌏 Cuisines &amp; allergies</summary>${prefsHTML()}</details>
+      <p class="sm-note">Meal plans, recipes and grocery lists sync with your family when signed in.</p>`;
+    wire();
+  }
+  function dayHTML(day,isToday){
+    const type=typeOf(day);
+    return `<div class="sm-card mp-day mp-${type}"><div class="mp-day-head"><h2>${day}${isToday?' <span class="mp-today">Today</span>':''}</h2></div>
+      <div class="mp-types" role="group" aria-label="${day} is a">${DAY_TYPES.map(([k,l])=>`<button type="button" data-day-type="${k}" data-day="${day}" class="${type===k?'chosen':''}" aria-pressed="${type===k}">${l}</button>`).join('')}</div>
+      ${TIPS[type]?`<p class="mp-tip">${TIPS[type]}</p>`:''}
+      ${slotsFor(type).map(slot=>slotHTML(day,slot)).join('')}
+      ${extraHTML(day,type)}</div>`;
+  }
+  function slotHTML(day,slot){
+    const planned=mealsOn(day,slot);
+    return `<div class="mp-slot"><span class="mp-slot-name">${SLOT_ICON[slot]||'🍽️'} ${esc(slot)}</span><div class="mp-slot-meals">
+      ${planned.map(m=>`<span class="mp-meal">${esc(m.name)}<button type="button" data-delete-meal="${esc(m.id)}" aria-label="Remove ${esc(m.name)}">✕</button></span>`).join('')}
+      ${planned.length?'':`<select class="mp-pick" data-day="${day}" data-slot="${esc(slot)}" aria-label="Add ${esc(slot)} on ${day}"><option value="">+ Add</option>${choicesFor(slot).map(r=>`<option value="${esc(r.name)}">${esc(r.name)}</option>`).join('')}<option value="__own">✏️ Type my own…</option></select>`}
+    </div></div>`;
+  }
+  /* Meals saved under a slot that isn't shown for today's day type (e.g. a
+     Snack after switching to Tournament) stay visible so nothing disappears. */
+  function extraHTML(day,type){
+    const shown=slotsFor(type), extra=data.meals.filter(m=>m.day===day&&!shown.includes(m.type));
+    return extra.length?`<div class="mp-slot"><span class="mp-slot-name">🍽️ Also planned</span><div class="mp-slot-meals">${extra.map(m=>`<span class="mp-meal">${esc(m.name)} <small>${esc(m.type)}</small><button type="button" data-delete-meal="${esc(m.id)}" aria-label="Remove ${esc(m.name)}">✕</button></span>`).join('')}</div></div>`:'';
+  }
+  function groceryHTML(){
+    const items=grocery(), left=items.filter(([i])=>!data.groceryChecked?.[i]).length;
+    return `<div class="sm-card"><h2>🛒 Grocery list${items.length?` <small class="mp-count">${left} to buy</small>`:''}</h2>
+    ${items.length?items.map(([item,count])=>`<label class="sm-check"><input type="checkbox" data-grocery="${esc(item)}" ${data.groceryChecked?.[item]?'checked':''}><span>${esc(item)}${count>1?` <small>· ${count} meals</small>`:''}</span></label>`).join(''):'<p class="sub">Plan a few meals and their ingredients show up here.</p>'}
+    ${items.length?'<div class="sm-actions"><button type="button" class="btn" id="smCopyGroceries">Copy list</button><button type="button" class="btn" id="smUncheck">Uncheck all</button></div>':''}
+    <p class="sub">Counts show how many meals use an item, not amounts to buy. Always check labels for allergens.</p></div>`;
+  }
+  function recipeHTML(){
+    const list=eligible();
+    return `<div class="sm-recipes">${list.map(r=>`<div class="sm-recipe"><strong>${esc(r.name)}</strong><small>${esc(r.cuisine)} · ${esc(r.type)}</small><p>${esc(r.ingredients.join(', '))}</p>${r.instructions?`<p class="mp-steps">${esc(r.instructions)}</p>`:''}
+      <select class="mp-recipe-day" data-recipe-add="${esc(r.name)}" aria-label="Add ${esc(r.name)} to a day"><option value="">+ Add to a day</option>${days.map(d=>`<option>${d}</option>`).join('')}</select></div>`).join('')||'<p class="sub">No matching recipes. Check Cuisines &amp; allergies.</p>'}</div>`;
+  }
+  function customHTML(){
+    return `<form id="smCustomRecipe" class="sm-form"><label>Name<input name="name" maxlength="100" required></label>
+      <div class="sm-row"><label>Cuisine<select name="cuisine"><option>Korean</option><option>Vietnamese</option><option>American</option></select></label>
+      <label>Best for<select name="type">${ALL_TYPES.map(x=>`<option>${esc(x)}</option>`).join('')}</select></label></div>
+      <label>Ingredients, one per line<textarea name="ingredients" rows="4" required></textarea></label>
+      <label>How to make it<textarea name="instructions" rows="4" required></textarea></label>
+      <button class="btn primary" type="submit">Save recipe</button></form>
+      <h3>📷 Recipe scanner</h3><p class="sub">Coming later as a premium feature. Nothing is charged.</p>`;
+  }
+  function prefsHTML(){
+    return `<h3>Cuisines</h3>${['Korean','Vietnamese','American'].map(c=>`<label class="sm-check"><input type="checkbox" data-cuisine="${c}" ${pref().cuisines.includes(c)?'checked':''}>${c}</label>`).join('')}
+      <h3>Allergies / avoid</h3>${allergenNames.map(a=>`<label class="sm-check"><input type="checkbox" data-allergen="${a}" ${pref().allergies.includes(a)?'checked':''}>${a}</label>`).join('')}
+      <p class="sub">Filters are a guide only. Always check labels, sauces and cross-contact.</p>`;
+  }
+
+  /* ---------- Actions ---------- */
+  function addMeal(day,slot,name){if(!name)return;data.meals.push({id:id(),day,type:slot,name:name.slice(0,100)});save();render();}
+  function wire(){
+    const q=s=>panel.querySelector(s), qa=s=>panel.querySelectorAll(s);
+    // keep open <details> sections open across re-renders
+    qa('details.mp-more').forEach((d,i)=>{if(openSections.has(i))d.open=true;d.ontoggle=()=>d.open?openSections.add(i):openSections.delete(i);});
+    qa('[data-day-type]').forEach(b=>b.onclick=()=>{data.dayTypes[b.dataset.day]=b.dataset.dayType;save();render();});
+    qa('.mp-pick').forEach(s=>s.onchange=()=>{
+      let name=s.value; if(!name)return;
+      if(name==='__own'){name=(prompt(`${s.dataset.slot} on ${s.dataset.day}:`)||'').trim();if(!name){s.value='';return;}}
+      addMeal(s.dataset.day,s.dataset.slot,name);
+    });
+    qa('[data-recipe-add]').forEach(s=>s.onchange=()=>{const r=recipeFor(s.dataset.recipeAdd);if(!r||!s.value)return;addMeal(s.value,r.type,r.name);});
+    qa('[data-delete-meal]').forEach(b=>b.onclick=()=>{data.meals=data.meals.filter(x=>x.id!==b.dataset.deleteMeal);save();render();});
+    q('#smSmart').onclick=smartPlan;
+    q('#smClearMeals').onclick=()=>{if(confirm('Clear all meals for the week? Day tags and recipes stay.')){data.meals=[];save();render();}};
+    q('#smCopyGroceries')?.addEventListener('click',()=>{
+      const list=grocery().filter(([i])=>!data.groceryChecked?.[i]).map(([name])=>'- '+name).join('\n');
+      if(navigator.clipboard?.writeText)navigator.clipboard.writeText(list).then(()=>alert('Grocery list copied')).catch(()=>prompt('Copy grocery list:',list));
+      else prompt('Copy grocery list:',list);
+    });
+    q('#smUncheck')?.addEventListener('click',()=>{data.groceryChecked={};save();render();});
+    qa('[data-grocery]').forEach(b=>b.onchange=()=>{data.groceryChecked=data.groceryChecked||{};data.groceryChecked[b.dataset.grocery]=b.checked;save();render();});
+    qa('[data-cuisine]').forEach(b=>b.onchange=()=>{const p=pref();p.cuisines=b.checked?[...new Set([...p.cuisines,b.dataset.cuisine])]:p.cuisines.filter(x=>x!==b.dataset.cuisine);save();render();});
+    qa('[data-allergen]').forEach(b=>b.onchange=()=>{const p=pref();p.allergies=b.checked?[...new Set([...p.allergies,b.dataset.allergen])]:p.allergies.filter(x=>x!==b.dataset.allergen);save();render();});
+    q('#smCustomRecipe')?.addEventListener('submit',e=>{
+      e.preventDefault();
+      const f=new FormData(e.currentTarget),name=String(f.get('name')||'').trim();
+      if(allRecipes().some(r=>r.name.toLowerCase()===name.toLowerCase())){alert('A recipe with that name already exists.');return;}
+      const ingredients=String(f.get('ingredients')||'').split(/\n|,/).map(x=>x.trim()).filter(Boolean);
+      const instructions=String(f.get('instructions')||'').trim();
+      if(!name||!ingredients.length||!instructions)return;
+      data.customRecipes=data.customRecipes||[];
+      data.customRecipes.push({name,cuisine:String(f.get('cuisine')),type:String(f.get('type')),ingredients,instructions,servings:4,allergens:[]});
+      save();render();alert('Recipe saved. Find it under Recipes or in the + Add menus.');
+    });
+  }
+  const openSections=new Set();
   function smartPlan(){
-    const pool=eligible();
-    if(!pool.length){alert('No recipes match these filters. Choose another cuisine or adjust allergies.');return;}
-    if(!confirm('Fill empty meal slots with suggested meals? Existing meals will stay unchanged.'))return;
-    for(const day of days)for(const type of ['Breakfast','Lunch','Dinner','Snack']){
-      if(data.meals.some(m=>m.day===day&&m.type===type))continue;
-      const choices=pool.filter(r=>r.type===type);
-      if(!choices.length)continue;
-      const chosen=choices[(days.indexOf(day)+data.meals.length)%choices.length];
-      data.meals.push({id:id(),day,type,name:chosen.name});
+    if(!eligible().length){alert('No recipes match your filters. Check Cuisines & allergies.');return;}
+    if(!confirm('Fill empty meals for the week? Meals you already planned stay.'))return;
+    let n=data.meals.length;
+    for(const day of days)for(const slot of slotsFor(typeOf(day))){
+      if(mealsOn(day,slot).length)continue;
+      const choices=choicesFor(slot); if(!choices.length)continue;
+      data.meals.push({id:id(),day,type:slot,name:choices[(days.indexOf(day)+n++)%choices.length].name});
     }
     save();render();
   }
-  function groceryHTML(){
-    const items=grocery();
-    return `<div class="sm-card"><h2>🛒 Grocery list</h2><p class="sub">Ingredients for selected built-in recipes; counts show recipe uses, not purchase quantities. Check packages for allergens.</p>
-    ${items.length?items.map(([item,count])=>`<label class="sm-check"><input type="checkbox" data-grocery="${esc(item)}" ${data.groceryChecked?.[item]?'checked':''}><span>${esc(item)} ${count>1?'· '+count+' meals':''}</span></label>`).join(''):'<p class="sub">Add a recipe to create your grocery list.</p>'}
-    <button type="button" class="btn" id="smCopyGroceries">Copy grocery list</button></div>`;
-  }
-  function mealPreferencesHTML(){
-    return `<div class="sm-card"><h2>🌏 Food preferences</h2><p class="sub">Select cuisines and ingredients to avoid.</p>
-    <h3>Cuisines</h3>${['Korean','Vietnamese','American'].map(c=>`<label class="sm-check"><input type="checkbox" data-cuisine="${c}" ${pref().cuisines.includes(c)?'checked':''}>${c}</label>`).join('')}
-    <h3>Allergies / avoid</h3>${allergenNames.map(a=>`<label class="sm-check"><input type="checkbox" data-allergen="${a}" ${pref().allergies.includes(a)?'checked':''}>${a}</label>`).join('')}
-    <p class="sub">Recipe filters are informational only. Always verify labels, sauces, substitutions and cross-contact risks.</p></div>`;
-  }
-  function recipeHTML(){
-    return `<div class="sm-card"><h2>📖 Korean, Vietnamese & family recipes</h2><div class="sm-recipes">${eligible().map(r=>`<div class="sm-recipe"><strong>${esc(r.name)}</strong><small>${esc(r.cuisine)} · ${esc(r.type)}</small><p>${esc(r.ingredients.join(', '))}</p><button type="button" data-recipe-add="${esc(r.name)}">Add to plan</button></div>`).join('')||'<p>No matching recipes. Update your preferences.</p>'}</div></div>`;
-  }
-  function mealsHTML(){
-    return `<div class="sm-actions"><button type="button" class="btn primary" id="smSmart">✨ Smart fill empty days</button><button type="button" class="btn" id="smClearMeals">Clear meal plan</button></div>
-    <div class="sm-grid"><div class="sm-card"><h2>Weekly meal plan</h2>
-    <form id="smMealForm" class="sm-form"><label>Day<select name="day">${days.map(d=>`<option>${d}</option>`).join('')}</select></label>
-    <label>Meal<select name="type"><option>Breakfast</option><option>Lunch</option><option>Dinner</option><option>Snack</option></select></label>
-    <label>Meal or recipe<input name="name" maxlength="100" placeholder="Pho ga or family recipe" required></label><button class="btn primary" type="submit">Add meal</button></form>
-    ${days.map(day=>`<div class="sm-day"><h3>${day}</h3>${data.meals.filter(m=>m.day===day).map(m=>`<div class="sm-item"><div><strong>${esc(m.name)}</strong><small>${esc(m.type)}</small></div><button type="button" data-delete-meal="${esc(m.id)}" aria-label="Delete meal">✕</button></div>`).join('')||'<p class="sub">No meals planned</p>'}</div>`).join('')}</div>
-    <div class="sm-card"><h2>✍️ Create your own recipe — Free</h2><form id="smCustomRecipe" class="sm-form"><label>Name<input name="name" maxlength="100" required></label><label>Cuisine<select name="cuisine"><option>Korean</option><option>Vietnamese</option><option>American</option></select></label><label>Meal type<select name="type"><option>Breakfast</option><option>Lunch</option><option>Dinner</option><option>Snack</option></select></label><label>Servings<input name="servings" type="number" min="1" max="30" value="4"></label><label>Ingredients, one per line<textarea name="ingredients" rows="4" required></textarea></label><label>Cooking instructions<textarea name="instructions" rows="4" required></textarea></label><button class="btn primary" type="submit">Save recipe</button></form><h3>📷 Premium recipe scanner</h3><p class="sub">Planned pricing: $2.99/month or $19.99/year. Scanning requires a future in-app purchase and secure processing integration.</p><button type="button" id="smPremiumScan" class="btn">🔒 Premium scan — Coming soon</button></div>${mealPreferencesHTML()}${recipeHTML()}${groceryHTML()}</div>`;
-  }
-  function addEvent(e){
-    e.preventDefault();const f=new FormData(e.currentTarget);
-    const item={title:String(f.get('title')||'').trim(),athlete:String(f.get('athlete')||'').trim(),date:String(f.get('date')||''),time:String(f.get('time')||''),
-      sport:String(f.get('sport')||'Other'),kind:String(f.get('kind')||'Practice'),location:String(f.get('location')||'').trim()};
-    if(!item.title||!item.athlete||!/^\d{4}-\d{2}-\d{2}$/.test(item.date))return;
-    const i=editing?data.events.findIndex(x=>x.id===editing):-1;
-    if(i>=0)data.events[i]={...data.events[i],...item};else data.events.push({id:id(),...item});
-    editing=null;save();render();
-  }
-  function addMeal(e){e.preventDefault();const f=new FormData(e.currentTarget);data.meals.push({id:id(),day:String(f.get('day')),type:String(f.get('type')),name:String(f.get('name')).trim()});save();render();}
 })();
