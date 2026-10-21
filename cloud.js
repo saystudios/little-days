@@ -249,6 +249,7 @@
       '<div class="settings-row"><button class="primary" id="cloudShare" type="button" disabled>Share invite</button><button class="ghost" id="cloudCopy" type="button" disabled>Copy code</button><button class="ghost" id="cloudNewCode" type="button">Make a new code</button></div>' +
       '<p class="note">Share the code privately. Making a new code stops the old one from working.</p>' +
       '<div id="memberList"></div>' +
+      '<p class="note">Anyone invited currently has parent-level editing access. Kid Mode has a local PIN, not a separate cloud child account. Only invite trusted adults.</p>' +
       '<div class="settings-row"><button class="ghost" id="cloudLogout" type="button">Sign out</button></div>' +
       '<div class="danger-zone"><div class="settings-row"><button class="danger" id="cloudLeave" type="button">Leave family</button><button class="danger" id="cloudDelete" type="button">Delete my account</button></div></div>');
     let code = '';
