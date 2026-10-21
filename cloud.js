@@ -246,7 +246,7 @@
     show('<p class="sub">Signed in as <b>' + esc(user.email) + '</b>. Changes sync to every parent in your family.</p>' +
       '<h4 style="margin:16px 0 4px">Invite another parent</h4>' +
       '<div class="invite-code" id="inviteCode">…</div><p class="note" id="inviteExpiry"></p>' +
-      '<div class="settings-row"><button class="ghost" id="cloudCopy" type="button">Copy code</button><button class="ghost" id="cloudNewCode" type="button">Make a new code</button></div>' +
+      '<div class="settings-row"><button class="primary" id="cloudShare" type="button" disabled>Share invite</button><button class="ghost" id="cloudCopy" type="button" disabled>Copy code</button><button class="ghost" id="cloudNewCode" type="button">Make a new code</button></div>' +
       '<p class="note">Share the code privately. Making a new code stops the old one from working.</p>' +
       '<div id="memberList"></div>' +
       '<div class="settings-row"><button class="ghost" id="cloudLogout" type="button">Sign out</button></div>' +
@@ -256,6 +256,8 @@
       code = c || '';
       $('#inviteCode').textContent = code.replace(/(.{6})(?=.)/g, '$1 ');
       $('#inviteExpiry').textContent = expires ? 'Works until ' + new Date(expires).toLocaleDateString(undefined, { month: 'long', day: 'numeric' }) + '.' : '';
+      $('#cloudCopy').disabled = !code;
+      $('#cloudShare').disabled = !code;
     };
     client.from('families').select('*').eq('id', family).single().then(({ data: f }) => f && showCode(f.invite_code, f.invite_expires_at));
     client.rpc('family_members_list', { fid: family }).then(({ data: rows, error }) => {
@@ -263,7 +265,28 @@
       $('#memberList').innerHTML = '<h4 style="margin:16px 0 4px">Parents in this family</h4>' + rows.map(r =>
         '<div class="note" style="font-size:14px;color:var(--ink)">' + esc(r.email) + (r.is_me ? ' (you)' : '') + (r.role === 'owner' ? ' · owner' : '') + '</div>').join('');
     });
-    $('#cloudCopy').onclick = () => navigator.clipboard?.writeText(code).then(() => msg('Code copied.'), () => msg('Copy failed — write the code down instead.', true));
+    const inviteText = () => 'Join my family on Little Days! Open Settings → Family sync, sign in with your own email, tap Join family, and enter this private invite code: ' + code;
+    const copyInvite = async () => {
+      if (!code) return msg('Invite code is still loading. Try again.', true);
+      try {
+        if (!navigator.clipboard?.writeText) throw new Error('Clipboard not available');
+        await navigator.clipboard.writeText(code);
+        msg('Invite code copied. Send it privately to your family member.');
+      } catch {
+        msg('Could not copy automatically. Select the visible invite code to copy it manually.', true);
+      }
+    };
+    $('#cloudCopy').onclick = copyInvite;
+    $('#cloudShare').onclick = async () => {
+      if (!code) return msg('Invite code is still loading. Try again.', true);
+      if (!navigator.share) return copyInvite();
+      try {
+        await navigator.share({ title: 'Little Days family invitation', text: inviteText() });
+        msg('Invite ready to send. Your family member can join using the code.');
+      } catch (e) {
+        if (e?.name !== 'AbortError') msg('Sharing was unavailable. Use Copy code instead.', true);
+      }
+    };
     $('#cloudNewCode').onclick = ev => busyButton(ev.target, async () => {
       if (!confirm('Make a new invite code? The current code will stop working.')) return;
       const { data: rows, error } = await client.rpc('regenerate_invite', { fid: family });
