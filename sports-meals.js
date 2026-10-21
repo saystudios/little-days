@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const KEY = 'ld_sports_meals_v1';
-  const defaults = () => ({events:[], meals:[], checklist:{}, preferences:{cuisines:['Korean','Vietnamese','American'],allergies:[],servings:4}, groceryChecked:{}});
+  const defaults = () => ({events:[], meals:[], checklist:{}, preferences:{cuisines:['Korean','Vietnamese','American'],allergies:[],servings:4}, groceryChecked:{},customRecipes:[]});
   let data;
   try { data = {...defaults(), ...JSON.parse(localStorage.getItem(KEY) || '{}')}; } catch { data=defaults(); }
   const save=()=>{localStorage.setItem(KEY,JSON.stringify(data));window.littleDaysSportsSync?.queue();};
@@ -41,6 +41,19 @@
     panel.querySelector('#smEventForm')?.addEventListener('submit',addEvent);
     panel.querySelector('#smMealForm')?.addEventListener('submit',addMeal);
     panel.querySelector('#smSmart')?.addEventListener('click',smartPlan);
+    panel.querySelector('#smCustomRecipe')?.addEventListener('submit',e=>{
+      e.preventDefault();
+      const f=new FormData(e.currentTarget),name=String(f.get('name')||'').trim();
+      if([...recipes,...(data.customRecipes||[])].some(r=>r.name.toLowerCase()===name.toLowerCase())){alert('Recipe name already exists.');return;}
+      const ingredients=String(f.get('ingredients')||'').split(/\n|,/).map(x=>x.trim()).filter(Boolean);
+      const instructions=String(f.get('instructions')||'').trim();
+      if(!name||!ingredients.length||!instructions)return;
+      data.customRecipes=data.customRecipes||[];
+      data.customRecipes.push({name,cuisine:String(f.get('cuisine')),type:String(f.get('type')),ingredients,instructions,servings:Number(f.get('servings'))||4,allergens:[]});
+      save();render();
+    });
+    panel.querySelector('#smPremiumScan')?.addEventListener('click',()=>alert('Premium scanning is not available yet. No payment has been charged.'));
+
     panel.querySelector('#smClearMeals')?.addEventListener('click',()=>{if(confirm('Clear all planned meals?')){data.meals=[];save();render();}});
     panel.querySelector('#smCopyGroceries')?.addEventListener('click',()=>{
       const list=grocery().map(([name,count])=>'- '+name+(count>1?' ('+count+' meals)':'')).join('\\n');
@@ -94,8 +107,8 @@
   ];
   const allergenNames=['Milk','Egg','Wheat','Soy','Sesame','Fish','Shellfish','Peanut','Tree nut'];
   const pref=()=>data.preferences||(data.preferences={cuisines:['Korean','Vietnamese','American'],allergies:[],servings:4});
-  const eligible=()=>recipes.filter(r=>pref().cuisines.includes(r.cuisine)&&!r.allergens.some(a=>pref().allergies.includes(a)));
-  const recipeFor=name=>recipes.find(r=>r.name===name);
+  const eligible=()=>[...recipes,...(data.customRecipes||[])].filter(r=>pref().cuisines.includes(r.cuisine)&&!r.allergens.some(a=>pref().allergies.includes(a)));
+  const recipeFor=name=>[...recipes,...(data.customRecipes||[])].find(r=>r.name===name);
   const grocery=()=>{
     const items=new Map();
     for(const meal of data.meals){const recipe=recipeFor(meal.name);if(!recipe)continue;
@@ -138,7 +151,7 @@
     <label>Meal<select name="type"><option>Breakfast</option><option>Lunch</option><option>Dinner</option><option>Snack</option></select></label>
     <label>Meal or recipe<input name="name" maxlength="100" placeholder="Pho ga or family recipe" required></label><button class="btn primary" type="submit">Add meal</button></form>
     ${days.map(day=>`<div class="sm-day"><h3>${day}</h3>${data.meals.filter(m=>m.day===day).map(m=>`<div class="sm-item"><div><strong>${esc(m.name)}</strong><small>${esc(m.type)}</small></div><button type="button" data-delete-meal="${esc(m.id)}" aria-label="Delete meal">✕</button></div>`).join('')||'<p class="sub">No meals planned</p>'}</div>`).join('')}</div>
-    ${mealPreferencesHTML()}${recipeHTML()}${groceryHTML()}</div>`;
+    <div class="sm-card"><h2>✍️ Create your own recipe — Free</h2><form id="smCustomRecipe" class="sm-form"><label>Name<input name="name" maxlength="100" required></label><label>Cuisine<select name="cuisine"><option>Korean</option><option>Vietnamese</option><option>American</option></select></label><label>Meal type<select name="type"><option>Breakfast</option><option>Lunch</option><option>Dinner</option><option>Snack</option></select></label><label>Servings<input name="servings" type="number" min="1" max="30" value="4"></label><label>Ingredients, one per line<textarea name="ingredients" rows="4" required></textarea></label><label>Cooking instructions<textarea name="instructions" rows="4" required></textarea></label><button class="btn primary" type="submit">Save recipe</button></form><h3>📷 Premium recipe scanner</h3><p class="sub">Planned pricing: $2.99/month or $19.99/year. Scanning requires a future in-app purchase and secure processing integration.</p><button type="button" id="smPremiumScan" class="btn">🔒 Premium scan — Coming soon</button></div>${mealPreferencesHTML()}${recipeHTML()}${groceryHTML()}</div>`;
   }
   function addEvent(e){e.preventDefault();const f=new FormData(e.currentTarget);data.events.push({id:id(),title:String(f.get('title')).trim(),athlete:String(f.get('athlete')).trim(),date:String(f.get('date')),sport:String(f.get('sport'))});save();render();}
   function addMeal(e){e.preventDefault();const f=new FormData(e.currentTarget);data.meals.push({id:id(),day:String(f.get('day')),type:String(f.get('type')),name:String(f.get('name')).trim()});save();render();}
