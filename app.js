@@ -284,7 +284,7 @@ function renderCalendar() {
 }
 
 /* Day view: an hour grid; overlapping activities sit side by side. */
-const HOUR_PX = 56;
+const HOUR_PX = 76;
 function renderDay(body, today) {
   const key = dateKey(cursor), evs = getEvents(key, key);
   $('calTitle').textContent = fmtDay(key, { weekday: 'long', month: 'short', day: 'numeric' });
@@ -312,7 +312,7 @@ function renderDay(body, today) {
   }
   const now = new Date(), nowM = now.getHours() * 60 + now.getMinutes();
   const blocks = timed.map(t => {
-    const k = kidBy(t.e.kidId), h = Math.max(30, y(t.end) - y(t.start) - 3);
+    const k = kidBy(t.e.kidId), h = Math.max(48, y(t.end) - y(t.start) - 3);
     return `<button class="dblock ${colorClass(k)}" style="top:${y(t.start)}px;height:${h}px;left:calc(var(--gut) + (100% - var(--gut)) * ${t.col / t.cols});width:calc((100% - var(--gut)) / ${t.cols} - 4px)" data-event="${esc(t.e.id)}" data-on="${esc(key)}">
       <strong>${catIcon(t.e.category)} ${esc(t.e.title)}</strong><small>${esc(fmtRange(t.e))} · ${esc(nameOf(k))}${t.e.location ? ' · ' + esc(t.e.location) : ''}</small></button>`;
   }).join('');
