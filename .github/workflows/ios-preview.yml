@@ -27,7 +27,7 @@ on:
       - '.github/workflows/ios-preview.yml'
 jobs:
   ios-simulator:
-    runs-on: macos-15
+    runs-on: macos-26-intel  # same runner as TestFlight; macOS ARM runners were often unavailable
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
