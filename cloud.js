@@ -363,10 +363,16 @@
     });
 
     try {
-      await sportsStart();
       if (await hasItemSync()) await startItemSync(); else await startBlobSync();
       msg('');
     } catch (e) { status('⚠️ Not synced'); msg(friendly(e), true); }
+    // Sports & Meals sync runs separately, so a problem there never stops the
+    // family calendar, lists and kids from syncing. It retries on its timer.
+    sportsStart().catch(e => {
+      console.warn('Sports and meals sync will retry:', e);
+      clearInterval(sportsPoll);
+      sportsPoll = setInterval(() => { if (sportsPending) sportsPush(); else if (document.visibilityState === 'visible') sportsPull().catch(console.warn); }, 12000);
+    });
   }
 
   async function signOut() { stopSync(); await client.auth.signOut(); user = null; loginUI(); msg('Signed out. Your planner is still on this device.'); }

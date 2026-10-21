@@ -5,7 +5,7 @@
   const defaults = () => ({events:[], meals:[], checklist:{}, preferences:{cuisines:['Korean','Vietnamese','American'],allergies:[],servings:4}, groceryChecked:{},customRecipes:[]});
   let data;
   try { data = {...defaults(), ...JSON.parse(localStorage.getItem(KEY) || '{}')}; } catch { data=defaults(); }
-  const save=()=>{localStorage.setItem(KEY,JSON.stringify(data));window.littleDaysSportsSync?.queue();};
+  const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(data));}catch{alert('Could not save on this device. Free up space and try again.');}window.littleDaysSportsSync?.queue();window.dispatchEvent(new Event('little-days-sports-changed'));window.dispatchEvent(new Event('littledays:saved'));};
   window.addEventListener('little-days-sports-remote',()=>{try{data={...defaults(),...JSON.parse(localStorage.getItem(KEY)||'{}')};if(active)render();}catch{}});
   window.addEventListener('little-days-sports-conflict',()=>alert('Another parent updated Sports & Meals at the same time. The family version was reloaded. Please check your changes.'));
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -20,14 +20,21 @@
   const homeButton=document.createElement('button'); homeButton.type='button';homeButton.className='sports-meals-home';
   homeButton.innerHTML='🏆 Sports & Meals';
   document.querySelector('#todayView .page-head')?.after(homeButton);
-  let active=false, mode='sports';
+  let active=false, mode='sports', editing=null;
+  const kidNames=()=>{try{return (window.littleDaysPlanner?.()?.kids||[]).map(k=>k.name).filter(Boolean);}catch{return [];}};
+  const KINDS=['Practice','Game','Tournament','Class','Other'];
+  const SPORTS=['Taekwondo','Soccer','Swimming','Dance','Basketball','Baseball','Gymnastics','Tennis','Other'];
+  const fmtTime=t=>{if(!/^\d{2}:\d{2}$/.test(t||''))return '';const [h,m]=t.split(':').map(Number);return new Date(2000,0,1,h,m).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});};
+  const fmtDate=d=>{const [y,m,day]=String(d||'').split('-').map(Number);return y?new Date(y,m-1,day).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}):'';};
+  const opt=(list,cur)=>list.map(x=>`<option${x===cur?' selected':''}>${esc(x)}</option>`).join('');
   function open(which='sports') {
     mode=which;active=true;
     document.querySelectorAll('[data-page]').forEach(el=>el.classList.add('hidden'));
     panel.classList.remove('hidden'); document.querySelectorAll('.tab[data-view]').forEach(b=>b.classList.remove('active'));
     sportsButton.classList.add('active');render();
   }
-  function close(){active=false;panel.classList.add('hidden');sportsButton.classList.remove('active');}
+  function close(){active=false;editing=null;panel.classList.add('hidden');sportsButton.classList.remove('active');}
+  window.littleDaysSportsMeals={open};
   sportsButton.addEventListener('click',()=>open('sports'));
   homeButton.addEventListener('click',()=>open('sports'));
   document.addEventListener('click',e=>{if(active && e.target.closest('[data-view]'))close();},true);
@@ -71,18 +78,33 @@
       if(!normalized){alert('Please enter a weekday, such as Monday.');return;}
       data.meals.push({id:id(),day:normalized,type:recipe.type,name:recipe.name});save();render();
     });
-    panel.querySelectorAll('[data-delete-event]').forEach(b=>b.onclick=()=>{data.events=data.events.filter(x=>x.id!==b.dataset.deleteEvent);save();render();});
+    panel.querySelectorAll('[data-delete-event]').forEach(b=>b.onclick=()=>{const ev=data.events.find(x=>x.id===b.dataset.deleteEvent);if(ev&&!confirm(`Delete “${ev.title}”?`))return;data.events=data.events.filter(x=>x.id!==b.dataset.deleteEvent);if(editing===b.dataset.deleteEvent)editing=null;save();render();});
+    panel.querySelectorAll('[data-edit-event]').forEach(b=>b.onclick=()=>{editing=b.dataset.editEvent;render();panel.querySelector('#smEventForm')?.scrollIntoView({block:'center',behavior:'smooth'});});
+    panel.querySelector('#smCancelEdit')?.addEventListener('click',()=>{editing=null;render();});
     panel.querySelectorAll('[data-delete-meal]').forEach(b=>b.onclick=()=>{data.meals=data.meals.filter(x=>x.id!==b.dataset.deleteMeal);save();render();});
+    panel.querySelector('#smResetPack')?.addEventListener('click',()=>{data.checklist={};save();render();});
     panel.querySelectorAll('[data-gear]').forEach(b=>b.onchange=()=>{const key=b.dataset.gear;data.checklist[key]=b.checked;save();render();});
   }
   function sportsHTML(){
-    const events=[...data.events].sort((a,b)=>a.date.localeCompare(b.date));
-    return `<div class="sm-grid"><div class="sm-card"><h2>Upcoming activities</h2>
-      <form id="smEventForm" class="sm-form"><label>Activity or tournament<input name="title" placeholder="Taekwondo tournament" maxlength="90" required></label><label>Child / athlete<input name="athlete" placeholder="Child's name" maxlength="60" required></label><label>Date<input name="date" type="date" required></label><label>Sport<select name="sport"><option>Taekwondo</option><option>Soccer</option><option>Dance</option><option>Swimming</option><option>Other</option></select></label><button class="btn primary" type="submit">Add activity</button></form>
-      ${events.length?events.map(x=>`<div class="sm-item"><div><strong>${esc(x.title)}</strong><small>${esc(x.athlete)} · ${esc(x.sport)} · ${esc(x.date)}</small></div><button type="button" data-delete-event="${esc(x.id)}" aria-label="Delete ${esc(x.title)}">✕</button></div>`).join(''):'<p class="sub">No activities yet. Add your first practice or tournament.</p>'}</div>
+    const today=new Date(),tk=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    const sorted=[...data.events].sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
+    const upcoming=sorted.filter(x=>!x.date||x.date>=tk), past=sorted.filter(x=>x.date&&x.date<tk).reverse().slice(0,10);
+    const e=editing?data.events.find(x=>x.id===editing)||{}:{};
+    const item=x=>`<div class="sm-item"><div><strong>${x.kind==='Tournament'?'🏆 ':x.kind==='Game'?'⭐ ':''}${esc(x.title)}</strong><small>${esc([x.athlete,x.sport,x.kind].filter(Boolean).join(' · '))}</small><small>📅 ${esc(fmtDate(x.date))}${x.time?' · '+esc(fmtTime(x.time)):''}${x.location?' · 📍 '+esc(x.location):''}</small></div><div class="sm-item-actions"><button type="button" data-edit-event="${esc(x.id)}" aria-label="Edit ${esc(x.title)}">Edit</button><button type="button" data-delete-event="${esc(x.id)}" aria-label="Delete ${esc(x.title)}">✕</button></div></div>`;
+    return `<div class="sm-grid"><div class="sm-card"><h2>${editing?'Edit activity':'Upcoming activities'}</h2>
+      <form id="smEventForm" class="sm-form"><label>Activity or tournament<input name="title" placeholder="Taekwondo tournament" maxlength="90" value="${esc(e.title||'')}" required></label>
+      <label>Child / athlete<input name="athlete" list="smKids" placeholder="Child's name" maxlength="60" value="${esc(e.athlete||'')}" required><datalist id="smKids">${kidNames().map(n=>`<option value="${esc(n)}">`).join('')}</datalist></label>
+      <div class="sm-row"><label>Sport<select name="sport">${opt(SPORTS,e.sport||'Taekwondo')}</select></label><label>Type<select name="kind">${opt(KINDS,e.kind||'Practice')}</select></label></div>
+      <div class="sm-row"><label>Date<input name="date" type="date" value="${esc(e.date||'')}" required></label><label>Time<input name="time" type="time" value="${esc(e.time||'')}"></label></div>
+      <label>Location<input name="location" maxlength="120" placeholder="Gym, field or pool" value="${esc(e.location||'')}"></label>
+      <div class="sm-actions"><button class="btn primary" type="submit">${editing?'Save changes':'Add activity'}</button>${editing?'<button class="btn" type="button" id="smCancelEdit">Cancel</button>':''}</div>
+      <p class="sub">Reminders: a heads-up before timed activities, and a packing reminder the evening before games and tournaments (Settings → Reminders).</p></form>
+      ${upcoming.length?upcoming.map(item).join(''):'<p class="sub">No upcoming activities. Add your first practice or tournament.</p>'}
+      ${past.length?`<details class="sm-past"><summary>Past activities (${past.length})</summary>${past.map(item).join('')}</details>`:''}</div>
       <div class="sm-card"><h2>🎒 Tournament packing checklist</h2><p class="sub">Tap items as you pack.</p>
       ${gear.map(g=>`<label class="sm-check"><input type="checkbox" data-gear="${esc(g)}" ${data.checklist[g]?'checked':''}><span>${esc(g)}</span></label>`).join('')}
-      <p class="sm-progress">${gear.filter(g=>data.checklist[g]).length} of ${gear.length} packed</p></div></div>`;
+      <p class="sm-progress">${gear.filter(g=>data.checklist[g]).length} of ${gear.length} packed</p>
+      <button type="button" class="btn" id="smResetPack">Start a new packing list</button></div></div>`;
   }
   const days=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   const recipes=[
@@ -153,6 +175,14 @@
     ${days.map(day=>`<div class="sm-day"><h3>${day}</h3>${data.meals.filter(m=>m.day===day).map(m=>`<div class="sm-item"><div><strong>${esc(m.name)}</strong><small>${esc(m.type)}</small></div><button type="button" data-delete-meal="${esc(m.id)}" aria-label="Delete meal">✕</button></div>`).join('')||'<p class="sub">No meals planned</p>'}</div>`).join('')}</div>
     <div class="sm-card"><h2>✍️ Create your own recipe — Free</h2><form id="smCustomRecipe" class="sm-form"><label>Name<input name="name" maxlength="100" required></label><label>Cuisine<select name="cuisine"><option>Korean</option><option>Vietnamese</option><option>American</option></select></label><label>Meal type<select name="type"><option>Breakfast</option><option>Lunch</option><option>Dinner</option><option>Snack</option></select></label><label>Servings<input name="servings" type="number" min="1" max="30" value="4"></label><label>Ingredients, one per line<textarea name="ingredients" rows="4" required></textarea></label><label>Cooking instructions<textarea name="instructions" rows="4" required></textarea></label><button class="btn primary" type="submit">Save recipe</button></form><h3>📷 Premium recipe scanner</h3><p class="sub">Planned pricing: $2.99/month or $19.99/year. Scanning requires a future in-app purchase and secure processing integration.</p><button type="button" id="smPremiumScan" class="btn">🔒 Premium scan — Coming soon</button></div>${mealPreferencesHTML()}${recipeHTML()}${groceryHTML()}</div>`;
   }
-  function addEvent(e){e.preventDefault();const f=new FormData(e.currentTarget);data.events.push({id:id(),title:String(f.get('title')).trim(),athlete:String(f.get('athlete')).trim(),date:String(f.get('date')),sport:String(f.get('sport'))});save();render();}
+  function addEvent(e){
+    e.preventDefault();const f=new FormData(e.currentTarget);
+    const item={title:String(f.get('title')||'').trim(),athlete:String(f.get('athlete')||'').trim(),date:String(f.get('date')||''),time:String(f.get('time')||''),
+      sport:String(f.get('sport')||'Other'),kind:String(f.get('kind')||'Practice'),location:String(f.get('location')||'').trim()};
+    if(!item.title||!item.athlete||!/^\d{4}-\d{2}-\d{2}$/.test(item.date))return;
+    const i=editing?data.events.findIndex(x=>x.id===editing):-1;
+    if(i>=0)data.events[i]={...data.events[i],...item};else data.events.push({id:id(),...item});
+    editing=null;save();render();
+  }
   function addMeal(e){e.preventDefault();const f=new FormData(e.currentTarget);data.meals.push({id:id(),day:String(f.get('day')),type:String(f.get('type')),name:String(f.get('name')).trim()});save();render();}
 })();

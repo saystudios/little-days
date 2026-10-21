@@ -52,6 +52,8 @@ function afterChange() {
   window.dispatchEvent(new Event('littledays:saved'));
 }
 
+window.littleDaysPlanner = () => data;
+
 function getAllEvents(start, end) { return expandEvents(data.events, start, end); }
 /* A child's view includes whole-family items too. */
 const forFilter = list => list.filter(x => filter === 'all' || x.kidId === filter || !x.kidId);
@@ -671,7 +673,10 @@ $('calNext').onclick = () => stepCursor(1);
 $('calToday').onclick = () => { cursor = new Date(); renderCalendar(); };
 
 $('export').onclick = () => {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), url = URL.createObjectURL(blob), a = document.createElement('a');
+  // Sports & Meals (activities, meal plans, recipes, grocery list) ride along.
+  let sportsMeals = null;
+  try { sportsMeals = JSON.parse(localStorage.getItem('ld_sports_meals_v1') || 'null'); } catch (e) { sportsMeals = null; }
+  const blob = new Blob([JSON.stringify(sportsMeals ? { ...data, sportsMeals } : data, null, 2)], { type: 'application/json' }), url = URL.createObjectURL(blob), a = document.createElement('a');
   a.href = url; a.download = `little-days-backup-${todayKey()}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 $('importButton').onclick = () => $('importFile').click();
@@ -681,7 +686,14 @@ $('importFile').onchange = async e => {
     const obj = JSON.parse(await f.text());
     if (!isPlanner(obj)) throw Error('This file is not a Little Days backup.');
     if (!confirm('Replace your current planner with this backup?')) return;
-    data = obj; filter = 'all'; save(); render(); toast('Backup imported');
+    const { sportsMeals, ...planner } = obj;
+    data = planner; filter = 'all'; save(); render();
+    if (sportsMeals && typeof sportsMeals === 'object' && !Array.isArray(sportsMeals)) {
+      try { localStorage.setItem('ld_sports_meals_v1', JSON.stringify(sportsMeals)); } catch (err) { /* storage full */ }
+      window.dispatchEvent(new Event('little-days-sports-remote'));
+      window.littleDaysSportsSync?.queue?.();
+    }
+    toast('Backup imported');
   } catch (err) { alert('Could not import backup: ' + err.message); }
   e.target.value = '';
 };
