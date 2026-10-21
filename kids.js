@@ -271,6 +271,9 @@ function renderKidMode() {
   el.innerHTML = `<div class="km-wrap ${colorClass(k)}">
     <header class="km-head">${avatar(k, 72)}<div><h1 class="km-title">${greet}, ${esc(k.name)}!</h1>
       <p class="km-sub">${starsOn() ? `<span class="km-stars" aria-label="${bal} stars">${STAR} ${bal}</span>` : ''}${streak > 1 ? `<span class="km-streak">🔥 ${streak} days in a row</span>` : ''}</p></div></header>
+    <section class="km-card"><h2>🗓️ My day</h2>
+      ${(typeof getEvents === 'function' ? getEvents(today, today).filter(e => !e.kidId || e.kidId === k.id) : []).slice(0, 12).map(e => `<div class="km-step" style="cursor:default"><span class="km-emoji">${esc(typeof catIcon === 'function' ? catIcon(e.category) : '📅')}</span><span>${esc(e.title)}<small>${esc(e.time || 'All day')}${e.location ? ' · ' + esc(e.location) : ''}</small></span></div>`).join('') || '<p class="km-empty">Nothing scheduled today. 🌈</p>'}
+    </section>
     ${routines.map(r => { const done = K.routineSteps(data, r, today); const finished = K.routineDone(data, r, today); return `<section class="km-card">
       <h2>${esc(r.emoji || '📋')} ${esc(r.name)}${finished ? ' <span class="km-done">All done!</span>' : ` <span class="km-count">${done.length}/${r.steps.length}</span>`}</h2>
       <div class="km-steps">${r.steps.map(s => `<button class="km-step${done.includes(s.id) ? ' on' : ''}" data-km-step="${esc(r.id)}|${esc(s.id)}" aria-pressed="${done.includes(s.id)}"><span class="km-emoji">${esc(s.emoji || '⭐')}</span><span>${esc(s.title)}</span><span class="km-tick" aria-hidden="true"></span></button>`).join('')}</div></section>`; }).join('')}
