@@ -9,9 +9,13 @@
 })(typeof self !== 'undefined' ? self : this, function (core) {
   'use strict';
   const { dateKey, parseDate, plusDays, expandEvents, startsAt } = core;
-  const DEFAULTS = { activities: true, minutes: 10, birthdays: true, summary: false, summaryTime: '07:00', quiet: true, quietStart: '21:30', quietEnd: '06:30' };
+  const DEFAULTS = { activities: true, minutes: 10, birthdays: true, summary: false, summaryTime: '07:00', quiet: true, quietStart: '21:30', quietEnd: '06:30',
+    sports: true, prepTime: '19:00' };
   const MAX = 60;          // iOS keeps at most 64 pending notifications per app
-  const DAYS_AHEAD = 7;
+  // Look a month ahead and keep the soonest 60, so reminders keep arriving even
+  // if the app isn't opened for a while (each open reschedules the next 60).
+  const DAYS_AHEAD = 30;
+  const PREP_KINDS = ['Tournament', 'Game', 'Competition'];
 
   const prefsOf = p => ({ ...DEFAULTS, ...(p || {}) });
   const mins = t => /^\d{2}:\d{2}$/.test(t || '') ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3)) : null;
@@ -31,7 +35,8 @@
   const at = (day, time) => startsAt(day, time);
   const fmt = (d, opts) => d.toLocaleTimeString(undefined, opts || { hour: 'numeric', minute: '2-digit' });
 
-  function build(planner, { now = new Date(), prefs } = {}) {
+  /* sports: events from Sports & Meals ({ id, title, athlete, sport, kind, date, time, location }). */
+  function build(planner, { now = new Date(), prefs, sports = [] } = {}) {
     const p = prefsOf(prefs), out = [];
     const kids = planner?.kids || [];
     const kidName = id => kids.find(k => k.id === id)?.name || '';
@@ -45,6 +50,20 @@
       const details = [fmt(when), who, e.location, e.pickupBy ? '🚗 ' + e.pickupBy : ''].filter(Boolean).join(' · ');
       out.push({ key: `a|${e.id}|${e.on}|${e.time}`, kind: 'activity', at: fire,
         title: Number(p.minutes) > 0 ? `${e.title} in ${p.minutes >= 60 ? (p.minutes / 60) + ' hr' : p.minutes + ' min'}` : e.title, body: details });
+    }
+
+    if (p.sports) for (const e of Array.isArray(sports) ? sports : []) {
+      if (!e || !core.isDateKey(e.date) || e.date < start || e.date > end) continue;
+      const label = [e.athlete, e.sport, e.location].filter(Boolean).join(' · ');
+      const when = at(e.date, e.time);
+      if (p.activities && when) out.push({ key: `sa|${e.id}|${e.date}|${e.time}`, kind: 'sports', at: new Date(when.getTime() - (Number(p.minutes) || 0) * 60000),
+        title: Number(p.minutes) > 0 ? `${e.title} in ${p.minutes >= 60 ? (p.minutes / 60) + ' hr' : p.minutes + ' min'}` : e.title,
+        body: [fmt(when), label].filter(Boolean).join(' · ') });
+      if (PREP_KINDS.includes(e.kind)) {
+        const eve = dateKey(plusDays(parseDate(e.date), -1));
+        out.push({ key: `sp|${e.id}|${e.date}`, kind: 'prep', at: at(eve, p.prepTime || '19:00'),
+          title: `🎒 Pack for ${e.title} tomorrow`, body: [label, 'Check the packing list in Sports & Meals.'].filter(Boolean).join(' · ') });
+      }
     }
 
     if (p.birthdays) for (const k of kids) {
@@ -76,5 +95,5 @@
       .map(n => ({ ...n, id: idFor(n.key) }));
   }
 
-  return { build, isQuiet, idFor, DEFAULTS, MAX, prefsOf };
+  return { build, isQuiet, idFor, DEFAULTS, MAX, DAYS_AHEAD, prefsOf };
 });

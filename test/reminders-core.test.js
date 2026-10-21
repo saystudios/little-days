@@ -23,10 +23,32 @@ test('activity reminders fire the chosen minutes before, with useful details', (
   assert.ok(!list.some(n => n.key.includes('|x|')), 'all-day activities get no timed reminder');
 });
 
-test('nothing in the past, and repeats are covered for a week ahead', () => {
+test('nothing in the past, and repeats are covered for a month ahead', () => {
   const list = R.build(planner(), { now: local(2026, 10, 21, 15, 50), prefs: { birthdays: false } });
   const pianos = list.filter(n => n.key.startsWith('a|p|')).map(n => n.key.split('|')[2]);
-  assert.deepEqual(pianos, ['2026-10-26', '2026-10-28'], 'today’s 4:00 reminder (3:50) already passed');
+  assert.deepEqual(pianos.slice(0, 2), ['2026-10-26', '2026-10-28'], 'today’s 4:00 reminder (3:50) already passed');
+  assert.ok(pianos.includes('2026-11-16'), 'weeks ahead are scheduled too, so reminders keep coming if the app stays closed');
+  assert.ok(!pianos.some(d => d > '2026-11-20'), 'nothing past the 30-day window');
+});
+
+test('sports: reminder before timed practices and a packing reminder the evening before tournaments', () => {
+  const sports = [
+    { id: 't1', title: 'TKD tournament', athlete: 'Yuna', sport: 'Taekwondo', kind: 'Tournament', date: '2026-10-24', time: '08:30', location: 'Civic Center' },
+    { id: 'p1', title: 'Soccer practice', athlete: 'Leo', sport: 'Soccer', kind: 'Practice', date: '2026-10-22', time: '17:00' },
+    { id: 'old', title: 'Old', kind: 'Tournament', date: '2026-10-01' },
+    { id: 'bad', title: 'Bad', kind: 'Tournament', date: 'soon' }
+  ];
+  const list = R.build({ kids: [], events: [], tasks: [] }, { now: local(2026, 10, 20, 8), prefs: { minutes: 30, birthdays: false }, sports });
+  const prep = list.find(n => n.key === 'sp|t1|2026-10-24');
+  assert.equal(prep.at.getTime(), local(2026, 10, 23, 19, 0).getTime());
+  assert.match(prep.title, /Pack for TKD tournament tomorrow/);
+  assert.match(prep.body, /Yuna · Taekwondo · Civic Center/);
+  const practice = list.find(n => n.key === 'sa|p1|2026-10-22|17:00');
+  assert.equal(practice.at.getTime(), local(2026, 10, 22, 16, 30).getTime());
+  assert.ok(!list.some(n => n.key.startsWith('sp|p1')), 'practices get no packing reminder');
+  assert.ok(!list.some(n => /old|bad/.test(n.key)));
+  const off = R.build({ kids: [], events: [], tasks: [] }, { now: local(2026, 10, 20, 8), prefs: { sports: false, birthdays: false }, sports });
+  assert.equal(off.length, 0);
 });
 
 test('quiet hours drop reminders, including windows across midnight', () => {

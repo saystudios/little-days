@@ -10,16 +10,17 @@
     "ios:assets": "npx @capacitor/assets generate --ios --iconBackgroundColor \"#ffe3ee\" --splashBackgroundColor \"#fff8f1\" --splashBackgroundColorDark \"#1b1a2b\""
   },
   "dependencies": {
-    "@capacitor/core": "7.4.4",
-    "@capacitor/ios": "7.4.4",
-    "@supabase/supabase-js": "2.45.4",
     "@capacitor/app": "^7.0.0",
+    "@capacitor/app-launcher": "^7.0.0",
+    "@capacitor/core": "7.4.4",
     "@capacitor/haptics": "^7.0.0",
+    "@capacitor/ios": "7.4.4",
     "@capacitor/keyboard": "^7.0.0",
     "@capacitor/local-notifications": "^7.0.0",
     "@capacitor/preferences": "^7.0.0",
     "@capacitor/splash-screen": "^7.0.0",
-    "@capacitor/status-bar": "^7.0.0"
+    "@capacitor/status-bar": "^7.0.0",
+    "@supabase/supabase-js": "2.45.4"
   },
   "devDependencies": {
     "@capacitor/cli": "7.4.4",
