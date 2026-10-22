@@ -101,7 +101,6 @@
   load();
   const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(data));}catch{alert('Could not save on this device. Free up space and try again.');}window.littleDaysSportsSync?.queue();window.dispatchEvent(new Event('littledays:saved'));};
   window.addEventListener('little-days-sports-remote',()=>{load();if(active)render();});
-  window.addEventListener('little-days-sports-conflict',()=>alert('Another parent updated the meal plan at the same time. The family version was reloaded. Please check your changes.'));
 
   const pref=()=>data.preferences||(data.preferences={cuisines:['Korean','Vietnamese','American'],allergies:[],servings:4});
   const allRecipes=()=>[...BUILT_IN,...(data.customRecipes||[]).map(normRecipe)];
