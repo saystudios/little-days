@@ -1,0 +1,56 @@
+/* Little Days Summit Climb (Kid mode). Uses the child's color (--c, --c-ink)
+   from .km-wrap and the shared tokens in styles.css. */
+.cl-hero { display: flex; flex-direction: column; gap: 12px; }
+.cl-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.cl-top h2 { margin: 0; }
+.cl-mtn { display: block; width: 100%; height: auto; border-radius: 20px; }
+.cl-meter { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; text-align: center; }
+.cl-meter div { background: var(--surface-2); border-radius: 16px; padding: 10px 6px; }
+.cl-meter strong { display: block; font: 700 clamp(18px, 4.6vw, 24px) var(--display); font-variant-numeric: tabular-nums; color: var(--ink); }
+.cl-meter small { font-weight: 650; font-size: 13px; color: var(--ink-2); }
+.cl-hero .bar { height: 12px; }
+.cl-how { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink-2); }
+
+.cl-dream { font: 700 22px var(--display); margin: 0 0 4px; text-wrap: balance; }
+.cl-why { margin: 0 0 14px; color: var(--ink-2); font-weight: 600; }
+.cl-edit { margin-top: 14px; }
+.cl-btn { min-height: 56px; margin-top: 12px; padding: 0 24px; border: 0; border-radius: 999px; background: var(--c-ink); color: var(--surface); font: 700 18px var(--display); }
+.cl-btn:active { transform: scale(.97); }
+
+.cl-thought { margin: 0 0 14px; padding-left: 14px; border-left: 4px solid var(--c-ink); font: 650 19px var(--display); text-wrap: balance; }
+.cl-actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.cl-action { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: 12px; padding: 14px; text-align: left;
+  border: 3px solid var(--line); border-radius: 22px; background: var(--surface); color: var(--ink); }
+.cl-action:active { transform: scale(.97); }
+.cl-action strong { display: block; font: 700 18px var(--display); }
+.cl-action small { display: block; font: 600 14px var(--body); color: var(--ink-2); margin-top: 2px; overflow-wrap: anywhere; }
+.cl-action.done { background: var(--c); border-color: var(--c-ink); color: var(--c-ink); }
+.cl-action.done small { color: var(--c-ink); }
+
+.cl-medals { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 12px; }
+.cl-medal { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; font-size: 13px; font-weight: 700; color: var(--ink-3); }
+.cl-medal > span:first-child { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 30px;
+  background: var(--surface-2); border: 3px dashed var(--line); filter: grayscale(1); opacity: .55; }
+.cl-medal.got { color: var(--ink); }
+.cl-medal.got > span:first-child { background: var(--c); border: 3px solid var(--c-ink); filter: none; opacity: 1; }
+
+/* Sheets */
+.steprow.cl-row { grid-template-columns: minmax(0, 1fr) 44px; }
+.cl-coach { text-align: center; }
+.cl-coach .sub { margin-bottom: 12px; }
+.cl-orb { position: relative; width: 170px; height: 170px; margin: 8px auto 14px; display: grid; place-items: center; }
+.cl-orb::before { content: ""; position: absolute; inset: 16px; border-radius: 50%; background: var(--accent-soft); transform: scale(.78); transition: transform 4s ease-in-out; }
+.cl-orb.in::before { transform: scale(1); }
+.cl-orb svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cl-orb span { position: relative; font: 700 20px var(--display); }
+.cl-line { min-height: 3.2em; margin: 0 auto; max-width: 32ch; font: 650 18px var(--display); }
+.cl-flips { display: flex; flex-direction: column; gap: 10px; }
+.cl-flip { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; text-align: left; border: 2px solid var(--line); border-radius: 18px; background: var(--surface); color: var(--ink); }
+.cl-flip .from { font-weight: 650; color: var(--ink-2); }
+.cl-flip .to { display: none; font: 700 19px var(--display); color: var(--ink); }
+.cl-flip[aria-expanded="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.cl-flip[aria-expanded="true"] .from { text-decoration: line-through; }
+.cl-flip[aria-expanded="true"] .to { display: block; }
+.cl-lesson { display: flex; flex-direction: column; padding: 10px 0; border-top: 1px solid var(--line); }
+.cl-lesson small { color: var(--ink-2); }
+@media (prefers-reduced-motion: reduce) { .cl-orb::before { transition: none; } }

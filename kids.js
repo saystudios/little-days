@@ -77,6 +77,8 @@ function renderKidsFamily() {
     const chips = card.querySelector('.chips');
     if (starsOn()) chips.insertAdjacentHTML('beforeend', `<span class="chip">${STAR} ${K.balance(data, k.id)}</span>`);
     const s = K.streak(data, k.id, today); if (s > 1) chips.insertAdjacentHTML('beforeend', `<span class="chip">🔥 ${s}</span>`);
+    const C = window.LittleDaysClimb;
+    if (C && data.settings?.climb !== false) { const m = C.total(data, k); if (m) chips.insertAdjacentHTML('beforeend', `<span class="chip" title="Summit climb">⛰️ ${m.toLocaleString()} m</span>`); }
   });
   const waiting = K.pending(data);
   const byKid = (list, fmt) => data.kids.map(k => {
@@ -271,6 +273,7 @@ function renderKidMode() {
   el.innerHTML = `<div class="km-wrap ${colorClass(k)}">
     <header class="km-head">${avatar(k, 72)}<div><h1 class="km-title">${greet}, ${esc(k.name)}!</h1>
       <p class="km-sub">${starsOn() ? `<span class="km-stars" aria-label="${bal} stars">${STAR} ${bal}</span>` : ''}${streak > 1 ? `<span class="km-streak">🔥 ${streak} days in a row</span>` : ''}</p></div></header>
+    ${typeof climbHero === 'function' ? climbHero(k) : ''}
     <section class="km-card"><h2>🗓️ My day</h2>
       ${(typeof getEvents === 'function' ? getEvents(today, today).filter(e => !e.kidId || e.kidId === k.id) : []).slice(0, 12).map(e => `<div class="km-step" style="cursor:default"><span class="km-emoji">${esc(typeof catIcon === 'function' ? catIcon(e.category) : '📅')}</span><span>${esc(e.title)}<small>${esc(e.time || 'All day')}${e.location ? ' · ' + esc(e.location) : ''}</small></span></div>`).join('') || '<p class="km-empty">Nothing scheduled today. 🌈</p>'}
     </section>
@@ -280,6 +283,7 @@ function renderKidMode() {
     <section class="km-card"><h2>✅ My chores</h2>
       ${chores.length ? `<div class="km-steps">${chores.map(c => { const st = K.choreStatus(data, c, today); return `<button class="km-step${st !== 'todo' ? ' on' : ''}${st === 'waiting' ? ' wait' : ''}" data-km-chore="${esc(c.id)}" aria-pressed="${st !== 'todo'}"><span class="km-emoji">${esc(c.emoji || '✅')}</span><span>${esc(c.title)}${st === 'waiting' ? '<small>A grown-up will check ✋</small>' : starsOn() && c.stars ? `<small>${STAR} ${c.stars}</small>` : ''}</span><span class="km-tick" aria-hidden="true"></span></button>`; }).join('')}</div>`
         : '<p class="km-empty">No chores today. 🎉</p>'}</section>
+    ${typeof climbCards === 'function' ? climbCards(k) : ''}
     ${starsOn() && data.rewards.length ? `<section class="km-card"><h2>🎁 Save up for</h2><div class="km-rewards">${data.rewards.map(r => {
       const isAsked = asked.some(a => a.rewardId === r.id), can = avail >= r.cost;
       return `<button class="km-reward${can ? ' can' : ''}" data-km-reward="${esc(r.id)}"${isAsked || !can ? ' aria-disabled="true"' : ''}><span class="km-emoji">${esc(r.emoji || '🎁')}</span><strong>${esc(r.title)}</strong>
@@ -341,9 +345,12 @@ function renderKidSettings() {
   box.innerHTML = `<div class="panel"><h3>Kids</h3>
     <div class="field"><label class="switch"><input type="checkbox" id="starsToggle"${starsOn() ? ' checked' : ''}><span>Stars and rewards</span></label>
       <p class="note">Turn off to keep chores and routines without stars or a rewards shop.</p></div>
+    <div class="field"><label class="switch"><input type="checkbox" id="climbToggle"${data.settings?.climb !== false ? ' checked' : ''}><span>Summit climb in Kid mode</span></label>
+      <p class="note">Chores and routine steps climb a mountain. Kids also get a big-dream planner, a 1-minute focus coach and medals.</p></div>
     <div class="settings-row"><button class="ghost" id="pinBtn">${hasPin() ? 'Change grown-up PIN' : 'Set grown-up PIN'}</button><button class="primary" data-k-kidmode>Start Kid mode</button></div>
     <p class="note">The PIN is stored only on this device, so set one on each device kids use.</p></div>`;
   $('starsToggle').onchange = e => { data.settings.stars = e.target.checked; save(); toast(e.target.checked ? 'Stars on' : 'Stars off'); };
+  $('climbToggle').onchange = e => { data.settings.climb = e.target.checked; save(); toast(e.target.checked ? 'Summit climb on' : 'Summit climb off'); };
   $('pinBtn').onclick = () => openPinSetup();
 }
 
@@ -396,6 +403,6 @@ document.addEventListener('change', ev => {
   K.toggleChore(data, c, todayKey(), { byParent: true }); save(); render(); openKidDay(c.kidId);
 });
 
-K.ensure(data); K.tidy(data, todayKey());
+K.ensure(data); window.LittleDaysClimb?.fold(data, todayKey(), K.LOG_DAYS); K.tidy(data, todayKey());
 renderKidSettings();
 render();
