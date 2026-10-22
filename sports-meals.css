@@ -76,9 +76,6 @@
 .mp-groups{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .mp-groups div{display:grid;justify-items:center;gap:2px;text-align:center;border-radius:14px;padding:10px 4px;background:var(--surface-2);opacity:.65}
 .mp-groups div.on{opacity:1;background:var(--mp-mint)}.mp-groups span{font-size:24px}.mp-groups b{font-size:13px}.mp-groups small{font-size:12px;color:var(--ink-2)}
-.mp-tips{background:linear-gradient(140deg,var(--surface),var(--mp-yellow))}
-.mp-tips ul{list-style:none;padding:0;margin:0;display:grid;gap:8px}.mp-tips li{font-size:15px;padding-left:28px;position:relative}
-.mp-tips li::before{content:'✓';position:absolute;left:0;top:0;width:20px;height:20px;border-radius:50%;background:#2fa36b;color:#fff;font-size:12px;display:grid;place-items:center;font-weight:800}
 .mp-strip{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x mandatory}
 .mp-strip .mp-rcard{flex:0 0 130px;scroll-snap-align:start}
 /* recipe cards */
@@ -122,3 +119,33 @@ html.mp-locked{overflow:hidden}
   .mp-rgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .mp-ingr{columns:1}
 }
+/* ---------- Tournament day guide ---------- */
+.mp-tourney{margin:0 0 16px;background:linear-gradient(160deg,var(--surface),var(--mp-yellow))}
+.mp-thead h2{font-size:20px;margin:0;color:var(--mp-purple)}.mp-thead .sub{margin:4px 0 14px}
+.mp-tphases{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:var(--surface-2,#f7f2ff);padding:5px;border-radius:16px;margin-bottom:16px;max-width:480px}
+.mp-tphases button{min-height:44px;border:0;border-radius:12px;background:transparent;color:var(--ink-2);font:inherit;font-weight:800;font-size:15px;cursor:pointer}
+.mp-tphases button.chosen{background:var(--surface);color:var(--ink);box-shadow:0 3px 10px #48308b1a}
+.mp-tcols{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;align-items:start}
+.mp-trows{list-style:none;margin:0;padding:0;display:grid;gap:14px;position:relative}
+.mp-trows li{position:relative;padding-left:22px;border-left:3px solid var(--mp-lav);margin-left:6px}
+.mp-trows li::before{content:'';position:absolute;left:-9px;top:4px;width:15px;height:15px;border-radius:50%;background:var(--mp-purple);border:3px solid var(--surface)}
+.mp-twhen{display:inline-block;font-size:13px;font-weight:800;color:var(--mp-purple);background:var(--mp-lav);border-radius:999px;padding:3px 10px}
+.mp-trows p{margin:6px 0 8px;font-size:15px;line-height:1.45}
+.mp-tchips{display:flex;flex-wrap:wrap;gap:6px}
+.mp-tchip{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.mp-tchip.plain{cursor:default;background:var(--surface-2,#f7f2ff)}
+.mp-tchip.off{opacity:.55}
+.mp-tavoid{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
+.mp-tavoid h3{margin:0 0 10px;font-size:16px}
+.mp-tavoid ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.mp-tavoid li{position:relative;padding-left:26px;font-size:14px;line-height:1.4}
+.mp-tavoid li::before{content:'✕';position:absolute;left:0;top:0;width:18px;height:18px;border-radius:50%;background:var(--danger,#b4233f);color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center}
+.mp-tplan{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:18px;padding-top:14px;border-top:1px dashed var(--line)}
+.mp-tplan label{font-weight:800;font-size:15px}
+.mp-tplan select{min-height:44px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);font:inherit;padding:0 10px;max-width:100%}
+.mp-tourney>.sub:last-child{margin:12px 0 0;font-size:12px}
+@media(max-width:700px){.mp-tcols{grid-template-columns:1fr}.mp-tplan select,.mp-tplan .btn{flex:1 1 100%}}
+.mp-rgrow{display:block;margin-top:4px;font-size:12px;font-weight:700;color:var(--m2-ink)}
+.mp-growth{margin-bottom:16px;background:linear-gradient(160deg,var(--surface),var(--mp-mint))}
+.mp-growth h2{color:var(--mp-purple)}
+.mp-growth ul{margin:0 0 10px;padding-left:20px;display:grid;gap:8px;font-size:15px;line-height:1.45}

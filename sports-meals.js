@@ -6,7 +6,7 @@
   'use strict';
   const KEY = 'ld_sports_meals_v1';
   const defaults = () => ({events:[], meals:[], checklist:{}, dayTypes:{}, planMeals:null, favorites:[],
-    preferences:{cuisines:['Korean','Vietnamese','American'],allergies:[],servings:4}, groceryChecked:{}, customRecipes:[]});
+    preferences:{cuisines:['Korean','Vietnamese','American','Italian'],allergies:[],servings:4}, groceryChecked:{}, customRecipes:[]});
   let data;
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const id=()=>String(Date.now())+Math.random().toString(36).slice(2,7);
@@ -20,9 +20,29 @@
 
   /* ---------- Plans and meal slots ---------- */
   const PLANS={regular:{label:'Everyday meals',icon:'🏡',slots:['Breakfast','Lunch','Dinner','Snacks']},
-    sports:{label:'Sports meals',icon:'🏆',slots:['Breakfast','Fuel before','Lunch','Recover after','Dinner','Snacks']}};
-  const SLOT_ICON={Breakfast:'☀️',Lunch:'🍴','Fuel before':'⚡','Recover after':'💪',Dinner:'🌙',Snacks:'🍎'};
-  const SLOT_HINT={'Fuel before':'1–2 hrs before practice','Recover after':'after practice or games'};
+    sports:{label:'Sports meals',icon:'🏆',slots:['Breakfast','Fuel before','Between games','Lunch','Recover after','Dinner','Snacks']}};
+  const SLOT_ICON={Breakfast:'☀️',Lunch:'🍴','Fuel before':'⚡','Between games':'🥤','Recover after':'💪',Dinner:'🌙',Snacks:'🍎'};
+  const SLOT_HINT={'Fuel before':'30–60 min before playing','Between games':'tournament days: small bites + water','Recover after':'within an hour after playing'};
+
+  /* ---------- Tournament day guide: timing, what to eat, what to avoid ----------
+     foods: recipe names (tap to open) or plain foods. slot: where "Plan this day" puts the first food that fits the family's filters. */
+  const TOURNEY={
+    before:{label:'Before',icon:'⏰',rows:[
+      {when:'Night before',what:'A familiar dinner with plenty of carbs (rice, noodles or pasta) and some protein. Drink water with it.',foods:['Pasta and meatballs','Vietnamese chicken rice','Bun thit nuong']},
+      {when:'2–3 hours before',what:'Breakfast with carbs and a little protein. Keep it low in fat so it digests easily.',foods:['Banana oatmeal','Toast with honey and banana','Sticky rice (xoi)'],slot:'Breakfast'},
+      {when:'30–60 minutes before',what:'A small, easy snack and a cup of water.',foods:['Rice balls (jumeokbap)','Steamed sweet potato (goguma)','Banana'],slot:'Fuel before'}],
+      avoid:['New foods the child has never tried','Greasy or fried food (fries, donuts, bacon)','Lots of beans, raw veggies or high-fiber cereal right before','Soda and energy drinks','Playing on an empty stomach']},
+    during:{label:'During',icon:'🥤',rows:[
+      {when:'Every 15–20 minutes',what:'Small sips of water, even before feeling thirsty.',foods:['Water']},
+      {when:'Short break (under 1 hour)',what:'Quick carbs that are easy on the stomach.',foods:['Orange slices and pretzels','Banana','Grapes (cut in half)'],slot:'Between games'},
+      {when:'Long break (1–2+ hours)',what:'A light mini meal: carbs plus a little protein.',foods:['Mini kimbap rolls','Rice cakes and fruit','String cheese and crackers','Nut-free trail mix'],slot:'Lunch'},
+      {when:'Long or hot days',what:'For play over an hour or in the heat, a sports drink can help. Otherwise water is best.',foods:['Water','Sports drink']}],
+      avoid:['Big, heavy meals between games','Greasy concession-stand food (hot dogs, nachos, fries)','Candy and lots of sugar','Waiting until thirsty to drink','Energy drinks']},
+    after:{label:'After',icon:'💪',rows:[
+      {when:'Within 30–60 minutes',what:'Carbs plus protein to refuel tired muscles.',foods:['Chocolate milk and fruit','Banana yogurt smoothie','Turkey and cheese roll-ups'],slot:'Recover after'},
+      {when:'Rest of the day',what:'Keep drinking water to replace what was lost in sweat.',foods:['Water']},
+      {when:'Recovery dinner (within 2 hours)',what:'A balanced plate: protein, carbs and vegetables.',foods:['Chicken rice soup (chao ga)','Salmon and broccoli','Chicken stir-fry'],slot:'Dinner'}],
+      avoid:['Skipping the meal after playing','Only chips, candy or fast food','Soda instead of water','Waiting many hours to eat']}};
 
   /* ---------- Recipes (ready to cook) ----------
      t: best meal · a: picture (emoji) · g: food groups p=protein c=carbs v=fruit/veg */
@@ -76,8 +96,52 @@
     R('Orange slices and pretzels','','American','Snacks','🍊🥨','cv',['oranges','pretzels'],['Wheat'],'Pack orange wedges and a handful of pretzels. A classic between-games snack.'),
     R('String cheese and crackers','','American','Snacks','🧀🍘','pc',['string cheese','crackers'],['Milk','Wheat'],'Pack a cheese stick with whole-grain crackers.'),
     R('Nut-free trail mix','','American','Snacks','🥣🌻','c',['sunflower seeds','raisins','cereal'],[],'Mix sunflower seeds, raisins and cereal in small bags.'),
-    R('Yogurt and granola','','American','Snacks','🥣🍯','pc',['yogurt','granola','honey'],['Milk','Tree nut'],'Layer yogurt and granola in a cup. Check the granola label for nuts.')
+    R('Yogurt and granola','','American','Snacks','🥣🍯','pc',['yogurt','granola','honey'],['Milk','Tree nut'],'Layer yogurt and granola in a cup. Check the granola label for nuts.'),
+    /* More American */
+    R('Turkey chili','','American','Dinner','🍲🫘','pcv',['ground turkey','kidney beans','tomatoes','onions','chili powder'],[],'Brown turkey with onions, add beans, tomatoes and chili powder, and simmer 25 minutes. Serve with rice or cornbread.'),
+    R('Sheet-pan chicken and potatoes','','American','Dinner','🍗🥔','pcv',['chicken thighs','potatoes','green beans','olive oil'],[],'Toss chicken, cubed potatoes and green beans with olive oil and salt. Roast at 425°F (220°C) for 30–35 minutes.'),
+    R('Baked chicken tenders','','American','Dinner','🍗🥕','pcv',['chicken breast','panko','eggs','carrots'],['Wheat','Egg'],'Dip chicken strips in egg, then panko. Bake at 425°F (220°C) for 15–18 minutes. Serve with carrot sticks.'),
+    R('Turkey burgers and sweet potato fries','','American','Dinner','🍔🍠','pcv',['ground turkey','burger buns','sweet potatoes','lettuce'],['Wheat'],'Bake sweet potato wedges at 425°F (220°C) for 25 minutes. Grill or pan-cook turkey patties until no longer pink.'),
+    R('Grilled cheese and tomato soup','','American','Lunch','🥪🍅','cv',['bread','cheese','butter','tomato soup'],['Wheat','Milk'],'Butter bread, add cheese and cook in a pan until golden on both sides. Serve with warm tomato soup.'),
+    R('Chicken noodle soup','','American','Lunch','🍜🐔','pcv',['chicken','egg noodles','carrots','celery'],['Wheat','Egg'],'Simmer chicken, carrots and celery in broth for 20 minutes. Shred the chicken and add noodles for the last 8 minutes.'),
+    R('Breakfast burrito','','American','Breakfast','🌯🍳','pcv',['tortillas','eggs','black beans','cheese','salsa'],['Wheat','Egg','Milk'],'Scramble eggs, then wrap with warm black beans, cheese and a spoon of salsa.'),
+    R('French toast and fruit','','American','Breakfast','🍞🍓','pcv',['bread','eggs','milk','strawberries'],['Wheat','Egg','Milk'],'Dip bread in beaten egg and milk, cook in a pan until golden, and top with strawberries.'),
+    R('Bagel with cream cheese and banana','','American','Fuel before','🥯🍌','c',['bagels','cream cheese','bananas'],['Wheat','Milk'],'Toast half a bagel, add a thin layer of cream cheese and serve with a banana.'),
+    R('Cottage cheese and pineapple','','American','Recover after','🥛🍍','pv',['cottage cheese','pineapple'],['Milk'],'Spoon cottage cheese into a cup and top with pineapple chunks.'),
+    R('Applesauce and graham crackers','','American','Snacks','🍎🍪','c',['applesauce pouches','graham crackers'],['Wheat'],'Pack an applesauce pouch with a few graham crackers. Easy to eat between games.'),
+    /* Italian */
+    R('Spaghetti bolognese','spaghetti alla bolognese','Italian','Dinner','🍝🍅','pcv',['spaghetti','ground beef','tomato sauce','carrots','onions','parmesan'],['Wheat','Milk'],'Brown beef with finely chopped onion and carrot, add tomato sauce and simmer 20 minutes. Toss with spaghetti and parmesan.'),
+    R('Chicken parmesan and pasta','pollo alla parmigiana','Italian','Dinner','🍗🧀','pc',['chicken breast','breadcrumbs','eggs','marinara','mozzarella','pasta'],['Wheat','Egg','Milk'],'Bread thin chicken cutlets and bake at 425°F (220°C) for 15 minutes. Top with marinara and mozzarella, bake 5 more minutes. Serve with pasta.'),
+    R('Baked ziti with spinach','ziti al forno','Italian','Dinner','🍝🥬','pcv',['ziti pasta','ricotta','mozzarella','tomato sauce','spinach'],['Wheat','Milk'],'Mix cooked ziti with tomato sauce, ricotta and spinach. Top with mozzarella and bake at 375°F (190°C) for 20 minutes.'),
+    R('Homemade veggie pizza','pizza','Italian','Dinner','🍕🫑','cv',['pizza dough','tomato sauce','mozzarella','bell peppers'],['Wheat','Milk'],'Stretch dough, add sauce, cheese and peppers. Bake at 475°F (245°C) for 10–12 minutes. Kids can top their own.'),
+    R('Chicken and pea risotto','risotto','Italian','Dinner','🍚🟢','pcv',['arborio rice','chicken broth','peas','chicken','parmesan'],['Milk'],'Stir rice in warm broth a ladle at a time for 18–20 minutes. Add peas, cooked chicken and parmesan.'),
+    R('Minestrone soup','minestrone','Italian','Lunch','🥣🥕','cv',['small pasta','cannellini beans','carrots','zucchini','tomatoes'],['Wheat'],'Simmer vegetables and beans in broth with tomatoes for 20 minutes, add small pasta for the last 8.'),
+    R('Pesto pasta with chicken','pasta al pesto','Italian','Lunch','🍝🌿','pcv',['pasta','basil pesto','chicken','cherry tomatoes'],['Wheat','Milk','Tree nut'],'Toss warm pasta with pesto, sliced cooked chicken and halved cherry tomatoes. Most pesto has pine nuts.'),
+    R('Caprese pasta salad','insalata caprese','Italian','Lunch','🥗🍅','cv',['rotini','cherry tomatoes','mozzarella pearls','basil','olive oil'],['Wheat','Milk'],'Toss cooled pasta with tomatoes, mozzarella, basil and olive oil. Good cold in a lunch box.'),
+    R('Pasta with olive oil and parmesan','pasta in bianco','Italian','Fuel before','🍝✨','c',['pasta','olive oil','parmesan'],['Wheat','Milk'],'Plain pasta with a little olive oil and parmesan, 2–3 hours before playing. Simple and easy to digest.'),
+    R('Pasta and bean soup','pasta e fagioli','Italian','Recover after','🥣🫘','pcv',['small pasta','cannellini beans','tomatoes','carrots'],['Wheat'],'Simmer beans, tomatoes and carrots in broth, then cook small pasta in it until soft.'),
+    R('Veggie frittata','frittata','Italian','Breakfast','🍳🫑','pv',['eggs','spinach','bell peppers','parmesan'],['Egg','Milk'],'Cook peppers and spinach in an oven-safe pan, pour in beaten eggs with parmesan, and bake at 375°F (190°C) for 12 minutes.'),
+    R('Tomato bruschetta','bruschetta','Italian','Snacks','🍞🍅','cv',['bread','tomatoes','basil','olive oil'],['Wheat'],'Toast bread slices and top with chopped tomatoes, basil and a drizzle of olive oil.'),
+    /* Growing strong: protein, calcium and iron */
+    R('Bulgogi rice bowl','불고기 덮밥','Korean','Dinner','🥩🍚','pcv',['beef','rice','carrots','spinach','soy sauce','sesame oil'],['Soy','Wheat','Sesame'],'Marinate thin beef in soy sauce, a little sugar and sesame oil for 20 minutes. Stir-fry and serve over rice with sautéed spinach and carrots.'),
+    R('Steamed egg (gyeran-jjim)','계란찜','Korean','Breakfast','🥚☁️','p',['eggs','water','scallions'],['Egg'],'Whisk eggs with an equal amount of water and a pinch of salt. Steam or microwave gently until set and fluffy. Top with scallions.'),
+    R('Mild soft tofu soup','순두부찌개','Korean','Dinner','🍲🥚','pcv',['soft tofu','eggs','zucchini','rice'],['Soy','Egg'],'Simmer zucchini in broth, add soft tofu in spoonfuls, crack in an egg and cook 3 minutes. Serve with rice. Leave out the chili for kids.'),
+    R('Beef pho (pho bo)','phở bò','Vietnamese','Dinner','🍜🥩','pcv',['beef','rice noodles','bean sprouts','basil','fish sauce'],['Fish'],'Pour hot beef broth over rice noodles and thin raw beef slices so they cook in the bowl. Add herbs and bean sprouts.'),
+    R('Tofu in tomato sauce','đậu phụ sốt cà chua','Vietnamese','Dinner','🍅🧈','pcv',['firm tofu','tomatoes','scallions','rice'],['Soy'],'Pan-fry tofu cubes until golden, add chopped tomatoes and simmer into a sauce. Serve with rice.'),
+    R('Mac and cheese with broccoli','','American','Dinner','🧀🥦','pcv',['pasta','cheddar cheese','milk','broccoli'],['Wheat','Milk'],'Cook pasta with broccoli florets for the last 3 minutes. Stir in a sauce of melted cheese and milk.'),
+    R('Egg and cheese muffin cups','','American','Breakfast','🧁🍳','pv',['eggs','cheese','spinach','bell peppers'],['Egg','Milk'],'Whisk eggs with cheese and chopped veggies, pour into a muffin tin and bake at 350°F (175°C) for 18–20 minutes. They keep 4 days in the fridge.'),
+    R('Spinach and ricotta stuffed shells','conchiglioni ripieni','Italian','Dinner','🐚🧀','pcv',['jumbo pasta shells','ricotta','spinach','mozzarella','tomato sauce'],['Wheat','Milk'],'Fill cooked shells with ricotta and chopped spinach, set on tomato sauce, top with mozzarella and bake at 375°F (190°C) for 20 minutes.'),
+    R('Hard-boiled eggs and grapes','','American','Snacks','🥚🍇','pv',['eggs','grapes'],['Egg'],'Boil eggs for 10 minutes, cool and peel. Pack with grapes cut in half for younger kids.'),
+    R('Korean banana milk','바나나우유','Korean','Snacks','🍌🥛','pv',['bananas','milk','honey'],['Milk'],'Blend one banana with a cup of cold milk and a little honey (no honey under age 1).'),
   ];
+  /* Recipes that help kids grow: what each one brings. */
+  const GROWTH={'Salmon and broccoli':'Protein · vitamin D','Yogurt fruit bowl':'Calcium · protein','Eggs and toast':'Protein','Chocolate milk and fruit':'Calcium · protein',
+    'Banana yogurt smoothie':'Calcium · protein','Edamame':'Protein · iron','Turkey chili':'Protein · iron','Chicken parmesan and pasta':'Protein · calcium',
+    'Baked ziti with spinach':'Calcium · iron','Chicken and pea risotto':'Protein','Veggie frittata':'Protein · iron','Cottage cheese and pineapple':'Calcium · protein',
+    'Breakfast burrito':'Protein · iron','Spaghetti bolognese':'Protein · iron','Pasta and bean soup':'Protein · iron','Bulgogi rice bowl':'Protein · iron',
+    'Steamed egg (gyeran-jjim)':'Protein · vitamin D','Mild soft tofu soup':'Protein · calcium','Beef pho (pho bo)':'Protein · iron','Tofu in tomato sauce':'Protein · calcium',
+    'Mac and cheese with broccoli':'Calcium · protein','Egg and cheese muffin cups':'Protein · calcium','Spinach and ricotta stuffed shells':'Calcium · iron',
+    'Hard-boiled eggs and grapes':'Protein','Korean banana milk':'Calcium'};
   const TINTS=['#ffe3ec','#ece6ff','#e3efff','#e2f6ec','#fff4d6','#ffe9dc','#fde6f3'];
   const TYPE_FROM_OLD={Snack:'Snacks','Tournament bag':'Snacks'};
   const normRecipe=r=>({...r,type:TYPE_FROM_OLD[r.type]||r.type||'Dinner',art:r.art||'🍽️',groups:r.groups||'',allergens:r.allergens||[],ingredients:r.ingredients||[],steps:r.steps||r.instructions||'',custom:true});
@@ -103,12 +167,15 @@
   window.addEventListener('little-days-sports-remote',()=>{load();if(active)render();});
   window.addEventListener('little-days-sports-conflict',()=>alert('Another parent updated the meal plan at the same time. The family version was reloaded. Please check your changes.'));
 
-  const pref=()=>data.preferences||(data.preferences={cuisines:['Korean','Vietnamese','American'],allergies:[],servings:4});
+  const pref=()=>{const p=data.preferences||(data.preferences={cuisines:['Korean','Vietnamese','American','Italian'],allergies:[],servings:4});
+    // Italian arrived later: turn it on once for families who already had preferences.
+    if(!p.italianAdded){p.italianAdded=true;if(Array.isArray(p.cuisines)&&!p.cuisines.includes('Italian'))p.cuisines.push('Italian');}
+    return p;};
   const allRecipes=()=>[...BUILT_IN,...(data.customRecipes||[]).map(normRecipe)];
   const allowed=r=>pref().cuisines.includes(r.cuisine)&&!r.allergens.some(a=>pref().allergies.includes(a));
   const recipeFor=name=>allRecipes().find(r=>r.name===name);
   const isFav=name=>data.favorites.includes(name);
-  const fits=(r,slot)=>r.type===slot||(slot==='Snacks'&&r.type==='Fuel before')||(slot==='Fuel before'&&r.type==='Snacks'&&r.groups.includes('c'))||(slot==='Recover after'&&r.type==='Breakfast'&&r.groups.includes('p'));
+  const fits=(r,slot)=>r.type===slot||(slot==='Between games'&&(r.type==='Snacks'||r.type==='Fuel before'))||(slot==='Snacks'&&r.type==='Fuel before')||(slot==='Fuel before'&&r.type==='Snacks'&&r.groups.includes('c'))||(slot==='Recover after'&&r.type==='Breakfast'&&r.groups.includes('p'));
   const mealsAt=(plan,date,slot)=>(data.planMeals||[]).filter(m=>m.plan===plan&&m.date===date&&m.slot===slot);
 
   /* ---------- Entry points ---------- */
@@ -120,6 +187,7 @@
   railButton.type='button'; railButton.className='tab sports-meals-entry'; railButton.innerHTML='<svg aria-hidden="true"><use href="#i-bowl"/></svg><span>Meal Plan</span>';
   nav?.insertBefore(railButton,nav.querySelector('.add-btn'));
   const barButton=document.querySelector('.tabbar [data-meals-tab]');
+  let tourPhase='before', tourDay=null;
   let active=false, tab='plan', plan=localStorage.getItem('ld_meal_plan_kind')==='sports'?'sports':'regular', week=0, phoneDay=null, search='';
   function open(){
     active=true;
@@ -142,14 +210,14 @@
   const rangeLabel=w=>{const a=parse(w[0]),b=parse(w[6]);
     try{return new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric',year:'numeric'}).formatRange(a,b);}
     catch{return `${a.toLocaleDateString(undefined,{month:'short',day:'numeric'})} – ${b.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}`;}};
-  const recipeCard=(r,extra='')=>`<button type="button" class="mp-rcard" data-recipe="${esc(r.name)}">${art(r)}<span class="mp-rname">${esc(r.name)}</span>${r.native?`<span class="mp-rnative">${esc(r.native)}</span>`:''}<span class="mp-rmeta">${esc(r.cuisine)} · ${esc(r.type)}${isFav(r.name)?' · ❤️':''}</span>${extra}</button>`;
+  const recipeCard=(r,extra='')=>`<button type="button" class="mp-rcard" data-recipe="${esc(r.name)}">${art(r)}<span class="mp-rname">${esc(r.name)}</span>${r.native?`<span class="mp-rnative">${esc(r.native)}</span>`:''}<span class="mp-rmeta">${esc(r.cuisine)} · ${esc(r.type)}${isFav(r.name)?' · ❤️':''}</span>${GROWTH[r.name]?`<span class="mp-rgrow">🌱 ${esc(GROWTH[r.name])}</span>`:''}${extra}</button>`;
 
   /* ---------- Render ---------- */
   function render(){
     if(!active)return;
     const w=weekDates(week), today=keyOf(new Date());
     if(!phoneDay||!w.includes(phoneDay))phoneDay=w.includes(today)?today:w[0];
-    const TABS=[['plan','📅','Weekly plan'],['recipes','👩‍🍳','Recipes'],['grocery','🛒','Grocery list'],['favorites','❤️','Favorites'],['korean','🇰🇷','Korean food'],['filters','⚙️','Filters']];
+    const TABS=[['plan','📅','Weekly plan'],['recipes','👩‍🍳','Recipes'],['grocery','🛒','Grocery list'],['favorites','❤️','Favorites'],['growth','🌱','Growing strong'],['korean','🇰🇷','Korean food'],['filters','⚙️','Filters']];
     panel.innerHTML=`<header class="mp-head"><div class="mp-title"><span class="mp-title-icon" aria-hidden="true">🍴</span><div><h1>Meal Plan</h1><p class="sub">Healthy kids · Happy families · Stronger together 💗</p></div></div>
       <div class="mp-weeknav"><button type="button" class="mp-arrow" data-week="-1" aria-label="Previous week">‹</button><strong>${rangeLabel(w)}</strong><button type="button" class="mp-arrow" data-week="1" aria-label="Next week">›</button>
       ${week!==0?'<button type="button" class="mp-thisweek" data-week="0">📅 This week</button>':''}</div></header>
@@ -182,23 +250,55 @@
         <div class="sm-card mp-balance"><h2>Balanced plate <small>${esc(parse(day).toLocaleDateString(undefined,{weekday:'long'}))}</small></h2>
           <div class="mp-groups">${[['p','🍗','Protein'],['c','🍚','Carbs'],['v','🥦','Fruits & veggies']].map(([g,i,l])=>`<div class="${groups.has(g)?'on':''}"><span aria-hidden="true">${i}</span><b>${l}</b><small>${groups.has(g)?'✓ planned':'add some'}</small></div>`).join('')}</div>
           <p class="sub">A simple check of what's planned — not medical or nutrition advice.</p></div>
-        ${plan==='sports'?`<div class="sm-card mp-tips"><h2>🏆 Tournament day</h2><ul>
-          <li>Familiar breakfast 2–3 hours before</li><li>Hydrate well — water all day</li><li>Easy-to-digest foods</li><li>Pack healthy snacks for between matches</li><li>Avoid trying new foods on game day</li></ul></div>`:''}
+
       </div>
+      ${plan==='sports'?tourneyHTML(w,today):''}
       <div class="sm-card mp-popular"><h2>Popular Korean recipes</h2><div class="mp-strip">${korean.map(r=>recipeCard(r)).join('')}</div></div>
       <p class="sm-note">Each plan has its own week. Meal plans, recipes and grocery lists sync with your family when signed in.</p>`;
+  }
+
+  function tourneyHTML(w,today){
+    const g=TOURNEY[tourPhase];
+    if(!tourDay||!w.includes(tourDay))tourDay=w.includes(today)?(w.find(d=>d>=today&&parse(d).getDay()===6)||today):w[5];
+    const chip=f=>{const r=recipeFor(f);return r?`<button type="button" class="mp-tchip${allowed(r)?'':' off'}" data-recipe="${esc(f)}">${esc(r.art.slice(0,2))} ${esc(f)}</button>`:`<span class="mp-tchip plain">${esc(f)}</span>`;};
+    return `<div class="sm-card mp-tourney"><div class="mp-thead"><h2>🏆 Tournament day guide</h2><p class="sub">Timing, what to eat and what to avoid.</p></div>
+      <div class="mp-tphases" role="group" aria-label="When">${Object.entries(TOURNEY).map(([k,p])=>`<button type="button" data-tphase="${k}" aria-pressed="${tourPhase===k}" class="${tourPhase===k?'chosen':''}"><span aria-hidden="true">${p.icon}</span> ${p.label}</button>`).join('')}</div>
+      <div class="mp-tcols"><ol class="mp-trows">${g.rows.map(r=>`<li><span class="mp-twhen">${esc(r.when)}</span><p>${esc(r.what)}</p><div class="mp-tchips">${r.foods.map(chip).join('')}</div></li>`).join('')}</ol>
+        <div class="mp-tavoid"><h3>🚫 Avoid</h3><ul>${g.avoid.map(a=>`<li>${esc(a)}</li>`).join('')}</ul></div></div>
+      <div class="mp-tplan"><label for="mpTourDay">Plan a tournament day</label><select id="mpTourDay">${w.map(d=>`<option value="${d}"${d===tourDay?' selected':''}>${esc(parse(d).toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'}))}</option>`).join('')}</select>
+        <button type="button" class="btn primary" data-tplan>Fill this day</button></div>
+      <p class="sub">General tips for active kids, not medical or nutrition advice. Ask your doctor about allergies or special needs.</p></div>`;
+  }
+  /* Fill a day's empty Sports slots from the guide, respecting cuisines and allergies. */
+  function planTournamentDay(date){
+    const pool=allRecipes().filter(allowed); let n=0;
+    for(const p of Object.values(TOURNEY))for(const row of p.rows){
+      if(!row.slot||mealsAt('sports',date,row.slot).length)continue;
+      const pick=row.foods.map(recipeFor).find(r=>r&&allowed(r))||pool.find(r=>fits(r,row.slot));
+      if(!pick)continue;
+      data.planMeals.push({id:id(),plan:'sports',date,slot:row.slot,name:pick.name}); n++;
+    }
+    return n;
   }
 
   function recipesHTML(kind){
     let list=allRecipes().filter(allowed);
     if(kind==='favorites')list=allRecipes().filter(r=>isFav(r.name));
     if(kind==='korean')list=allRecipes().filter(r=>r.cuisine==='Korean'&&allowed(r));
+    if(kind==='growth')list=list.filter(r=>GROWTH[r.name]);
     const q=search.trim().toLowerCase();
     if(q)list=list.filter(r=>(r.name+' '+(r.native||'')+' '+r.ingredients.join(' ')).toLowerCase().includes(q));
-    const order=['Breakfast','Lunch','Dinner','Fuel before','Recover after','Snacks'];
+    const order=['Breakfast','Lunch','Dinner','Fuel before','Between games','Recover after','Snacks'];
     const groups=order.map(t=>[t,list.filter(r=>r.type===t)]).filter(([,l])=>l.length);
     const empty=kind==='favorites'?'<p class="sub">Tap ❤️ on any recipe to save it here.</p>':'<p class="sub">No recipes match. Try another search or check Filters.</p>';
-    return `<div class="mp-searchrow"><input type="search" id="mpSearch" placeholder="Search recipes or ingredients" value="${esc(search)}" aria-label="Search recipes">
+    const growthTips=kind==='growth'?`<div class="sm-card mp-growth"><h2>🌱 Growing strong</h2><ul>
+        <li><b>Protein at every meal</b>: eggs, fish, chicken, beef, tofu, beans, milk and yogurt build muscle.</li>
+        <li><b>Calcium and vitamin D</b>: milk, yogurt, cheese, tofu and salmon help bones grow. Playing outside in daylight helps too.</li>
+        <li><b>Iron</b>: beef, beans, spinach and eggs carry energy around the body. Pair them with fruit for vitamin C.</li>
+        <li><b>Colors on the plate</b>: fruits and vegetables of different colors every day.</li>
+        <li><b>Sleep</b>: most growing happens during sleep. Kids 6–12 need about 9–12 hours.</li></ul>
+        <p class="sub">General tips, not medical advice. Ask your child's doctor about their growth or any special diet.</p></div>`:'';
+    return `${growthTips}<div class="mp-searchrow"><input type="search" id="mpSearch" placeholder="Search recipes or ingredients" value="${esc(search)}" aria-label="Search recipes">
       ${kind==='recipes'?'<button type="button" class="btn primary" id="mpNewRecipe">＋ Create recipe</button>':''}</div>
       ${groups.length?groups.map(([t,l])=>`<h2 class="mp-group">${SLOT_ICON[t]} ${esc(t)}</h2><div class="mp-rgrid">${l.map(r=>recipeCard(r)).join('')}</div>`).join(''):empty}`;
   }
@@ -218,7 +318,7 @@
       <p class="sub">Counts show how many meals use an item, not amounts. Always check labels for allergens.</p></div>`;
   }
   function filtersHTML(){
-    return `<div class="sm-card"><h2>Cuisines</h2>${['Korean','Vietnamese','American'].map(c=>`<label class="sm-check"><input type="checkbox" data-cuisine="${c}" ${pref().cuisines.includes(c)?'checked':''}>${c}</label>`).join('')}
+    return `<div class="sm-card"><h2>Cuisines</h2>${['Korean','Vietnamese','American','Italian'].map(c=>`<label class="sm-check"><input type="checkbox" data-cuisine="${c}" ${pref().cuisines.includes(c)?'checked':''}>${c}</label>`).join('')}
       <h2>Allergies / avoid</h2>${['Milk','Egg','Wheat','Soy','Sesame','Fish','Shellfish','Peanut','Tree nut'].map(a=>`<label class="sm-check"><input type="checkbox" data-allergen="${a}" ${pref().allergies.includes(a)?'checked':''}>${a}</label>`).join('')}
       <p class="sub">Filters are a guide only. Sauces like soy sauce and gochujang usually contain wheat, and many kimchi contain fish sauce — always check labels and cross-contact.</p></div>`;
   }
@@ -284,7 +384,7 @@
     const s=sheet(`<div class="mp-sheet-head"><h2>Create a recipe — free</h2><button type="button" class="mp-x" data-close aria-label="Close">✕</button></div>
       <form class="sm-form" id="mpCreate"><label>Name<input name="name" maxlength="100" required></label>
       <div class="sm-row"><label>Cuisine<select name="cuisine"><option>Korean</option><option>Vietnamese</option><option>American</option></select></label>
-      <label>Best for<select name="type">${['Breakfast','Lunch','Dinner','Snacks','Fuel before','Recover after'].map(x=>`<option>${x}</option>`).join('')}</select></label></div>
+      <label>Best for<select name="type">${['Breakfast','Lunch','Dinner','Snacks','Fuel before','Between games','Recover after'].map(x=>`<option>${x}</option>`).join('')}</select></label></div>
       <fieldset class="mp-artpick"><legend>Picture</legend>${ARTS.map((a,i)=>`<label><input type="radio" name="art" value="${a}"${i===0?' checked':''}><span>${a}</span></label>`).join('')}</fieldset>
       <label>Ingredients, one per line<textarea name="ingredients" rows="4" required></textarea></label>
       <label>How to make it<textarea name="steps" rows="4" required></textarea></label>
@@ -315,7 +415,7 @@
   function quick(k,w){
     if(k==='recipes'||k==='korean'){tab=k;search='';render();return;}
     if(k==='fill'){if(!confirm(`Fill empty meals this week in ${PLANS[plan].label}? Meals you planned stay.`))return;const n=fillWeek(plan,w);save();render();toastMsg(n?`Added ${n} meals`:'Every meal is already planned');return;}
-    if(k==='tournament'){plan='sports';localStorage.setItem('ld_meal_plan_kind',plan);render();toastMsg('Switched to Sports meals — tap ＋ or Fill empty meals');return;}
+    if(k==='tournament'){plan='sports';tourPhase='before';localStorage.setItem('ld_meal_plan_kind',plan);render();panel.querySelector('.mp-tourney')?.scrollIntoView({behavior:'smooth',block:'start'});toastMsg('Here is the tournament day guide');return;}
     if(k==='repeat'){
       const prev=weekDates(week-1), src=(data.planMeals||[]).filter(m=>m.plan===plan&&prev.includes(m.date));
       if(!src.length){alert('Nothing was planned last week in this plan.');return;}
@@ -336,6 +436,12 @@
     qa('[data-meal]').forEach(b=>b.onclick=()=>{const m=data.planMeals.find(x=>x.id===b.dataset.meal);if(m)openRecipe(m.name,{mealId:m.id});});
     qa('[data-recipe]').forEach(b=>b.onclick=()=>openRecipe(b.dataset.recipe));
     qa('[data-quick]').forEach(b=>b.onclick=()=>quick(b.dataset.quick,w));
+    qa('[data-tphase]').forEach(b=>b.onclick=()=>{tourPhase=b.dataset.tphase;render();});
+    const td=panel.querySelector('#mpTourDay'); if(td)td.onchange=()=>{tourDay=td.value;};
+    panel.querySelector('[data-tplan]')?.addEventListener('click',()=>{const d=td?.value||tourDay;tourDay=d;
+      if(!Array.isArray(data.planMeals))data.planMeals=[];
+      const n=planTournamentDay(d);save();phoneDay=d;render();
+      toastMsg(n?`Planned ${n} tournament meals for ${parse(d).toLocaleDateString(undefined,{weekday:'long'})}`:'That day is already planned');});
     const sr=panel.querySelector('#mpSearch');
     if(sr){sr.oninput=()=>{search=sr.value;const pos=sr.selectionStart;render();const n=panel.querySelector('#mpSearch');n.focus();n.setSelectionRange(pos,pos);};}
     panel.querySelector('#mpNewRecipe')?.addEventListener('click',openCreate);
