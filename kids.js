@@ -4,6 +4,27 @@
 'use strict';
 const K = window.LittleDaysKids;
 const STAR = '⭐';
+/* Line icons for Kid mode headings, drawn in the child's color. */
+const KM_PATHS = {
+  cal: '<rect x="3.5" y="5" width="17" height="15.5" rx="4"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  check: '<rect x="3.5" y="3.5" width="17" height="17" rx="5"/><path d="m8 12.2 2.8 2.8L16.2 9.5"/>',
+  gift: '<rect x="3.5" y="8.5" width="17" height="4" rx="1.5"/><path d="M5 12.5v7.5h14v-7.5M12 8.5V20M12 8.5C10.5 5 7 4.5 7 6.8 7 8.5 12 8.5 12 8.5zm0 0c1.5-3.5 5-4 5-1.7 0 1.7-5 1.7-5 1.7z"/>',
+  mountain: '<path d="M2.5 19.5 9 8l3.6 6.2 2.4-3.7 6.5 9z"/><path d="m7.2 11.2 1.8 1.3 1.6-1.6"/>',
+  target: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r=".8" fill="currentColor"/>',
+  brain: '<path d="M9 4.5a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2.5 4.5A3 3 0 0 0 12 18V6.5A2.5 2.5 0 0 0 9 4.5z"/><path d="M15 4.5a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2.5 4.5A3 3 0 0 1 12 18"/>',
+  medal: '<path d="M8 3h8l-2 6h-4z"/><circle cx="12" cy="15" r="5.5"/><path d="m12 12.3.9 1.8 2 .3-1.4 1.4.3 2-1.8-1-1.8 1 .3-2-1.4-1.4 2-.3z"/>',
+  eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
+  flip: '<path d="M4 9h13l-3.5-3.5M20 15H7l3.5 3.5"/>',
+  bulb: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>',
+  flame: '<path d="M12 21.5a6 6 0 0 0 6-6c0-4-3-6-4-10-2 2-3 4-3 6-1-1-1.5-2-1.5-3C7 10.5 6 13 6 15.5a6 6 0 0 0 6 6z"/>',
+  bolt: '<path d="M13 2.5 4.5 14H11l-1 7.5L19.5 10H13z"/>',
+  flag: '<path d="M5 21V3.5M5 4h12l-2.5 4L17 12H5"/>',
+  book: '<path d="M4 5.5A2 2 0 0 1 6 3.5h14v14H6a2 2 0 0 0-2 2zM4 19.5a2 2 0 0 0 2 2h14v-4"/>',
+  boot: '<path d="M7 3.5h5v8l6.5 3a2.5 2.5 0 0 1 1.5 2.3V19H4.5v-3.5L7 13z"/><path d="M4.5 19v1.5h15.5V19"/>',
+  trophy: '<path d="M7 4h10v5a5 5 0 0 1-10 0zM12 14v4M8 21h8M7 6H4v1.5A3.5 3.5 0 0 0 7.5 11M17 6h3v1.5a3.5 3.5 0 0 1-3.5 3.5"/>',
+  lock: '<rect x="5" y="10.5" width="14" height="10" rx="3"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/>'
+};
+const kmIcon = (name, cls = 'km-ico') => `<span class="${cls}" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${KM_PATHS[name] || ''}</svg></span>`;
 const starsOn = () => data.settings?.stars !== false;
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
@@ -274,17 +295,17 @@ function renderKidMode() {
     <header class="km-head">${avatar(k, 72)}<div><h1 class="km-title">${greet}, ${esc(k.name)}!</h1>
       <p class="km-sub">${starsOn() ? `<span class="km-stars" aria-label="${bal} stars">${STAR} ${bal}</span>` : ''}${streak > 1 ? `<span class="km-streak">🔥 ${streak} days in a row</span>` : ''}</p></div></header>
     ${typeof climbHero === 'function' ? climbHero(k) : ''}
-    <section class="km-card"><h2>🗓️ My day</h2>
+    <section class="km-card"><h2>${kmIcon('cal')}My day</h2>
       ${(typeof getEvents === 'function' ? getEvents(today, today).filter(e => !e.kidId || e.kidId === k.id) : []).slice(0, 12).map(e => `<div class="km-step" style="cursor:default"><span class="km-emoji">${esc(typeof catIcon === 'function' ? catIcon(e.category) : '📅')}</span><span>${esc(e.title)}<small>${esc(e.time || 'All day')}${e.location ? ' · ' + esc(e.location) : ''}</small></span></div>`).join('') || '<p class="km-empty">Nothing scheduled today. 🌈</p>'}
     </section>
     ${routines.map(r => { const done = K.routineSteps(data, r, today); const finished = K.routineDone(data, r, today); return `<section class="km-card">
-      <h2>${esc(r.emoji || '📋')} ${esc(r.name)}${finished ? ' <span class="km-done">All done!</span>' : ` <span class="km-count">${done.length}/${r.steps.length}</span>`}</h2>
+      <h2><span class="km-ico emoji" aria-hidden="true">${esc(r.emoji || '📋')}</span>${esc(r.name)}${finished ? ' <span class="km-done">All done!</span>' : ` <span class="km-count">${done.length}/${r.steps.length}</span>`}</h2>
       <div class="km-steps">${r.steps.map(s => `<button class="km-step${done.includes(s.id) ? ' on' : ''}" data-km-step="${esc(r.id)}|${esc(s.id)}" aria-pressed="${done.includes(s.id)}"><span class="km-emoji">${esc(s.emoji || '⭐')}</span><span>${esc(s.title)}</span><span class="km-tick" aria-hidden="true"></span></button>`).join('')}</div></section>`; }).join('')}
-    <section class="km-card"><h2>✅ My chores</h2>
+    <section class="km-card"><h2>${kmIcon('check')}My chores</h2>
       ${chores.length ? `<div class="km-steps">${chores.map(c => { const st = K.choreStatus(data, c, today); return `<button class="km-step${st !== 'todo' ? ' on' : ''}${st === 'waiting' ? ' wait' : ''}" data-km-chore="${esc(c.id)}" aria-pressed="${st !== 'todo'}"><span class="km-emoji">${esc(c.emoji || '✅')}</span><span>${esc(c.title)}${st === 'waiting' ? '<small>A grown-up will check ✋</small>' : starsOn() && c.stars ? `<small>${STAR} ${c.stars}</small>` : ''}</span><span class="km-tick" aria-hidden="true"></span></button>`; }).join('')}</div>`
         : '<p class="km-empty">No chores today. 🎉</p>'}</section>
     ${typeof climbCards === 'function' ? climbCards(k) : ''}
-    ${starsOn() && data.rewards.length ? `<section class="km-card"><h2>🎁 Save up for</h2><div class="km-rewards">${data.rewards.map(r => {
+    ${starsOn() && data.rewards.length ? `<section class="km-card"><h2>${kmIcon('gift')}Save up for</h2><div class="km-rewards">${data.rewards.map(r => {
       const isAsked = asked.some(a => a.rewardId === r.id), can = avail >= r.cost;
       return `<button class="km-reward${can ? ' can' : ''}" data-km-reward="${esc(r.id)}"${isAsked || !can ? ' aria-disabled="true"' : ''}><span class="km-emoji">${esc(r.emoji || '🎁')}</span><strong>${esc(r.title)}</strong>
         <span class="km-cost">${isAsked ? 'Asked ✋' : can ? `Ask for it · ${STAR} ${r.cost}` : `${STAR} ${Math.max(0, r.cost - avail)} more`}</span>

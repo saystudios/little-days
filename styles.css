@@ -532,6 +532,9 @@ body.in-kidmode .tabbar { display: none; }
 .km-stars, .km-streak { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; background: var(--surface); box-shadow: var(--shadow); font: 700 20px var(--display); }
 .km-card { background: var(--surface); border-radius: 28px; padding: 20px; box-shadow: var(--shadow); }
 .km-card h2 { font-size: 24px; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.km-ico { flex: none; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--c, var(--accent-soft)); color: var(--c-ink, var(--accent)); }
+.km-ico svg { width: 22px; height: 22px; }
+.km-ico.emoji { background: var(--surface-2); font-size: 22px; line-height: 1; }
 .km-count, .km-done { font: 650 15px var(--body); padding: 4px 12px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); }
 .km-done { background: var(--c); color: var(--c-ink); }
 .km-steps { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }

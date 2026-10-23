@@ -9,7 +9,7 @@ const fmtM = n => Number(n).toLocaleString();
 const kidModeKid = () => kidBy(pref.get('ld_kid_mode', ''));
 
 /* Trail the climber follows, bottom to summit, in the mountain's viewBox. */
-const CL_TRAIL = [[46, 150], [112, 136], [86, 118], [152, 104], [130, 86], [190, 70], [170, 52], [206, 32]];
+const CL_TRAIL = [[64, 176], [128, 160], [104, 142], [166, 124], [146, 104], [196, 86], [178, 66], [210, 44]];
 function trailPoint(f) {
   const seg = []; let len = 0;
   for (let i = 1; i < CL_TRAIL.length; i++) { const s = Math.hypot(CL_TRAIL[i][0] - CL_TRAIL[i - 1][0], CL_TRAIL[i][1] - CL_TRAIL[i - 1][1]); seg.push(s); len += s; }
@@ -20,30 +20,59 @@ function trailPoint(f) {
   }
   return CL_TRAIL[CL_TRAIL.length - 1];
 }
+/* The part of the trail already climbed, as polyline points. */
+function trailDone(f) {
+  const [x, y] = trailPoint(f), out = [CL_TRAIL[0]];
+  for (let i = 1; i < CL_TRAIL.length && CL_TRAIL[i][1] > y; i++) out.push(CL_TRAIL[i]);   // the trail only goes up
+  out.push([x, y]);
+  return out.map(p => p.map(n => n.toFixed(1)).join(',')).join(' ');
+}
+
+const MEDAL_ICON = { first: 'boot', streak3: 'flame', streak7: 'bolt', summit1: 'flag', summit5: 'trophy', dreamer: 'target', focus: 'eye', learner: 'book' };
 
 function climbHero(k) {
   if (!climbOn()) return '';
   const today = todayKey(), m = CL.total(data, k), pos = CL.position(m), todayM = CL.metersOn(data, k.id, today);
   const [x, y] = trailPoint(pos.fraction), streak = CL.streak(data, k.id, today);
-  const pts = CL_TRAIL.map(p => p.join(',')).join(' ');
+  const trail = CL_TRAIL.map(p => p.join(',')).join(' ');
   return `<section class="km-card cl-hero" aria-label="Summit climb">
-    <div class="cl-top"><h2>⛰️ My climb</h2><span class="km-count">Mountain ${pos.mountain}${streak > 1 ? ` · 🔥 ${streak} days` : ''}</span></div>
-    <svg class="cl-mtn" viewBox="0 0 360 170" role="img" aria-label="${esc(k.name)} is ${fmtM(pos.into)} meters up mountain ${pos.mountain}">
-      <rect width="360" height="170" fill="var(--surface-2)"/>
-      <circle cx="304" cy="40" r="15" fill="var(--c)" opacity=".7"/>
-      <polygon points="0,170 0,104 56,78 104,100 158,60 214,92 262,70 312,94 360,76 360,170" fill="var(--c)" opacity=".45"/>
-      <polygon points="0,170 36,138 98,100 132,116 206,22 262,108 300,94 360,126 360,170" fill="var(--c)"/>
-      <polygon points="206,22 184,54 196,50 204,62 216,48 232,54" fill="var(--surface)"/>
-      <polygon points="98,100 88,112 100,109 108,116 114,110" fill="var(--surface)" opacity=".85"/>
-      <polyline points="${pts}" fill="none" stroke="var(--c-ink)" stroke-opacity=".35" stroke-width="3" stroke-dasharray="1 8" stroke-linecap="round"/>
-      <line x1="206" y1="32" x2="206" y2="8" stroke="var(--c-ink)" stroke-width="2.5"/>
-      <polygon points="206,8 224,13 206,18" fill="var(--accent)"/>
-      <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="15" fill="var(--c-ink)" opacity=".18"/>
-      <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="8" fill="var(--c-ink)" stroke="var(--surface)" stroke-width="3"/>
-    </svg>
-    <div class="cl-meter"><div><strong>${fmtM(todayM)} m</strong><small>today</small></div><div><strong>${fmtM(pos.left)} m</strong><small>to the top</small></div><div><strong>${fmtM(m)} m</strong><small>all time</small></div></div>
-    <span class="bar" aria-hidden="true"><span style="width:${Math.round(pos.fraction * 100)}%"></span></span>
-    <p class="cl-how">Every chore +${CL.CHORE} m · every routine step +${CL.STEP} m · picture your goal +${CL.VIZ} m</p>
+    <div class="cl-hero-head"><h2>${kmIcon('mountain')}My climb</h2><span class="cl-pill">Mountain ${pos.mountain}</span></div>
+    <div class="cl-scene">
+      <svg viewBox="0 0 360 200" preserveAspectRatio="xMidYMid slice" role="img" aria-label="${esc(k.name)} is ${fmtM(pos.into)} meters up mountain ${pos.mountain}">
+        <defs>
+          <linearGradient id="clSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--c)"/><stop offset="1" style="stop-color:var(--surface)"/></linearGradient>
+          <linearGradient id="clPeak" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--c-ink);stop-opacity:.82"/><stop offset="1" style="stop-color:var(--c-ink)"/></linearGradient>
+        </defs>
+        <rect width="360" height="200" fill="url(#clSky)"/>
+        <circle cx="300" cy="46" r="20" style="fill:var(--m3)" opacity=".9"/>
+        <g fill="#fff" opacity=".75"><rect x="40" y="34" width="54" height="14" rx="7"/><rect x="56" y="26" width="26" height="14" rx="7"/><rect x="250" y="76" width="44" height="11" rx="5.5"/></g>
+        <path d="M0 200V120l46-30 40 22 50-46 52 50 46-28 56 34 70-30v108z" style="fill:var(--c-ink)" opacity=".2"/>
+        <path d="M18 200 104 120l24 14L210 36l92 112 58 52z" fill="url(#clPeak)"/>
+        <path d="M210 36 302 148l58 52H250z" fill="#000" opacity=".12"/>
+        <path d="M210 36 186 66l12-4 9 12 12-14 10 9 6-6z" fill="#fff"/>
+        <path d="M104 120 94 130l9-2 6 6 7-7z" fill="#fff" opacity=".85"/>
+        <path d="M0 200v-18c40-14 80-12 120-2s90 8 130-4 80-8 110 4v20z" style="fill:var(--c)"/>
+        <polyline points="${trail}" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="2.5" stroke-dasharray="1 7" stroke-linecap="round"/>
+        <polyline points="${trailDone(pos.fraction)}" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M210 44V18" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M211 18h17l-4 5 4 5h-17z" style="fill:var(--accent)"/>
+        <circle class="cl-halo" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="13" fill="#fff" opacity=".35"/>
+        <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="8" fill="#fff"/>
+        <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" style="fill:var(--accent)"/>
+      </svg>
+    </div>
+    <div class="cl-stats">
+      <div><strong>${fmtM(todayM)}<span> m</span></strong><small>Today</small></div>
+      <div><strong>${streak}<span> ${streak === 1 ? 'day' : 'days'}</span></strong><small>Streak</small></div>
+      <div><strong>${fmtM(m)}<span> m</span></strong><small>All time</small></div>
+    </div>
+    <div class="cl-progress"><span class="bar" aria-hidden="true"><span style="width:${Math.round(pos.fraction * 100)}%"></span></span>
+      <div class="cl-progress-txt"><span>${fmtM(pos.into)} of ${fmtM(CL.PEAK)} m</span><span>${fmtM(pos.left)} m to the summit</span></div></div>
+    <div class="cl-earn" aria-label="How to climb">
+      <span>${kmIcon('check', 'cl-earn-ico')}Chore <b>+${CL.CHORE} m</b></span>
+      <span>${kmIcon('flag', 'cl-earn-ico')}Routine step <b>+${CL.STEP} m</b></span>
+      <span>${kmIcon('eye', 'cl-earn-ico')}Visualize <b>+${CL.VIZ} m</b></span>
+    </div>
   </section>`;
 }
 
@@ -52,22 +81,23 @@ function climbCards(k) {
   const today = todayKey(), dream = k.dream, viz = CL.vizDone(data, k.id, today);
   const lesson = (k.lessons || [])[(k.lessons || []).length - 1];
   const medals = CL.MEDALS.map(m => ({ ...m, got: CL.hasMedal(k, m.id) }));
-  return `<section class="km-card"><h2>🎯 My big dream${dream?.steps?.length ? ` <span class="km-count">${dream.steps.filter(s => s.done).length}/${dream.steps.length}</span>` : ''}</h2>
-      ${dream ? `<p class="cl-dream">${esc(dream.text || 'My dream')}</p>${dream.why ? `<p class="cl-why">${esc(dream.why)}</p>` : ''}
-        ${dream.steps.length ? `<div class="km-steps">${dream.steps.map(s => `<button class="km-step${s.done ? ' on' : ''}" data-cl-step="${esc(s.id)}" aria-pressed="${s.done}"><span class="km-emoji">🪜</span><span>${esc(s.title)}</span><span class="km-tick" aria-hidden="true"></span></button>`).join('')}</div>` : ''}
-        <button class="km-exit cl-edit" data-cl-dream>Change my dream</button>`
-      : `<p class="km-empty">What's your big dream? Champions turn big dreams into small steps.</p><button class="cl-btn" data-cl-dream>Write my dream</button>`}
+  const action = (attr, icon, title, sub, done) => `<button class="cl-action${done ? ' done' : ''}" ${attr}>${kmIcon(done ? 'check' : icon, 'cl-tile')}<span><strong>${title}</strong><small>${sub}</small></span><span class="cl-chev" aria-hidden="true">›</span></button>`;
+  return `<section class="km-card"><h2>${kmIcon('target')}My big dream${dream?.steps?.length ? ` <span class="km-count">${dream.steps.filter(s => s.done).length}/${dream.steps.length}</span>` : ''}</h2>
+      ${dream ? `<div class="cl-dream"><span class="cl-label">My dream</span><p>${esc(dream.text || 'My dream')}</p>${dream.why ? `<small>${esc(dream.why)}</small>` : ''}</div>
+        ${dream.steps.length ? `<div class="km-steps">${dream.steps.map((s, i) => `<button class="km-step${s.done ? ' on' : ''}" data-cl-step="${esc(s.id)}" aria-pressed="${s.done}"><span class="cl-num" aria-hidden="true">${i + 1}</span><span>${esc(s.title)}</span><span class="km-tick" aria-hidden="true"></span></button>`).join('')}</div>` : ''}
+        <button class="cl-btn ghost" data-cl-dream>Edit my dream</button>`
+      : `<div class="cl-empty"><p>What’s your big dream? Champions turn big dreams into small steps.</p><button class="cl-btn" data-cl-dream>Write my dream</button></div>`}
     </section>
-    <section class="km-card"><h2>🧠 Champion mind</h2>
-      <p class="cl-thought">“${esc(CL.thoughtFor(today))}”</p>
+    <section class="km-card"><h2>${kmIcon('brain')}Champion mind</h2>
+      <figure class="cl-thought"><figcaption class="cl-label">Thought of the day</figcaption><blockquote>${esc(CL.thoughtFor(today))}</blockquote></figure>
       <div class="cl-actions">
-        <button class="cl-action${viz ? ' done' : ''}" data-cl-viz><span class="km-emoji">${viz ? '✅' : '👀'}</span><span><strong>Picture my goal</strong><small>${viz ? 'Done today. Great focus!' : `1 minute · +${CL.VIZ} m`}</small></span></button>
-        <button class="cl-action" data-cl-reframe><span class="km-emoji">🔄</span><span><strong>Flip a stuck thought</strong><small>Swap “I can't” for a champion thought</small></span></button>
-        <button class="cl-action" data-cl-lesson><span class="km-emoji">💡</span><span><strong>Oops into a lesson</strong><small>${lesson ? `Last: ${esc(lesson.learn)}` : 'Everyone falls. What did you learn?'}</small></span></button>
+        ${action('data-cl-viz', 'eye', 'Picture my goal', viz ? 'Done today. Great focus!' : `1 minute · +${CL.VIZ} m`, viz)}
+        ${action('data-cl-reframe', 'flip', 'Flip a stuck thought', 'Swap “I can’t” for a champion thought')}
+        ${action('data-cl-lesson', 'bulb', 'Oops into a lesson', lesson ? `Last: ${esc(lesson.learn)}` : 'Everyone falls. What did you learn?')}
       </div>
     </section>
-    <section class="km-card"><h2>🏅 My medals <span class="km-count">${medals.filter(m => m.got).length}/${medals.length}</span></h2>
-      <div class="cl-medals">${medals.map(m => `<div class="cl-medal${m.got ? ' got' : ''}"><span aria-hidden="true">${m.emoji}</span>${esc(m.title)}${m.got ? '' : '<span class="sr-only"> (not yet)</span>'}</div>`).join('')}</div>
+    <section class="km-card"><h2>${kmIcon('medal')}My medals <span class="km-count">${medals.filter(m => m.got).length}/${medals.length}</span></h2>
+      <div class="cl-medals">${medals.map(m => `<div class="cl-medal${m.got ? ' got' : ''}"><span class="cl-disc">${kmIcon(m.got ? MEDAL_ICON[m.id] : 'lock', 'cl-disc-ico')}</span><span>${esc(m.title)}</span>${m.got ? '' : '<span class="sr-only"> (not earned yet)</span>'}</div>`).join('')}</div>
     </section>`;
 }
 
