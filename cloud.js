@@ -125,40 +125,73 @@
   };
 
 
-  // Sports and meals share the same authenticated family and database.
-  let sportsVersion=null, sportsPending=false, sportsBusy=false, sportsPoll=null;
-  const sportsKey='ld_sports_meals_v1';
-  const sportsLocal=()=>{try{return JSON.parse(localStorage.getItem(sportsKey)||'{}');}catch{return {};}};
-  async function sportsPull(){
-    if(!family||sportsPending||sportsBusy)return;
+  // Meal Plan (stored as one shared document per family). Every device keeps the
+  // last version it saw from the server ("base"); its own changes since then
+  // are merged onto the newest server version, so parents editing at the same
+  // time both keep their work instead of one being thrown away.
+  const M = window.LittleDaysMealsSync;
+  let sportsVersion=null, sportsPending=false, sportsBusy=false, sportsPoll=null, sportsGen=0;
+  const sportsKey='ld_sports_meals_v1', sportsBaseKey='ld_sports_meals_base';
+  const readJSON=k=>{try{return JSON.parse(localStorage.getItem(k)||'null');}catch{return null;}};
+  const sportsLocal=()=>readJSON(sportsKey)||{};
+  const sportsBase=()=>readJSON(sportsBaseKey);
+  const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+  const setLocal=(content,notify)=>{try{localStorage.setItem(sportsKey,JSON.stringify(content));}catch{/* storage full */}if(notify)window.dispatchEvent(new Event('little-days-sports-remote'));};
+  const setBase=content=>{try{localStorage.setItem(sportsBaseKey,JSON.stringify(content));}catch{/* storage full */}};
+  /* Fold a server version into this device: keep local edits made since base. */
+  function absorb(row){
+    const local=sportsLocal(), base=sportsBase(), remote=row.content||{};
+    sportsVersion=row.updated_at;
+    const localChanged=base?!same(local,base):!same(local,remote)&&Object.keys(local).length>0;
+    if(localChanged&&M){
+      const merged=M.merge(base,local,remote);
+      setBase(remote);
+      if(!same(merged,local))setLocal(merged,true);
+      if(!same(merged,remote)){sportsPending=true;sportsGen++;}
+    }else{
+      setBase(remote);
+      if(!same(local,remote))setLocal(remote,true);
+    }
+  }
+  async function fetchRow(){
     const {data:row,error}=await client.from('family_sports_meals').select('content,updated_at').eq('family_id',family).maybeSingle();
     if(error)throw error;
-    if(!row){
-      const {error:seedError}=await client.from('family_sports_meals').upsert({family_id:family,content:sportsLocal()},{onConflict:'family_id',ignoreDuplicates:true});
-      if(seedError)throw seedError;
-      return sportsPull();
-    }
-    sportsVersion=row.updated_at;
-    localStorage.setItem(sportsKey,JSON.stringify(row.content));
-    window.dispatchEvent(new Event('little-days-sports-remote'));
+    return row;
+  }
+  async function sportsPull(){
+    if(!family||sportsPending||sportsBusy)return;
+    sportsBusy=true;
+    try{
+      let row=await fetchRow();
+      if(!row){
+        const {error:seedError}=await client.from('family_sports_meals').upsert({family_id:family,content:sportsLocal()},{onConflict:'family_id',ignoreDuplicates:true});
+        if(seedError)throw seedError;
+        row=await fetchRow(); if(!row)return;
+      }
+      if(row.updated_at!==sportsVersion||!sportsBase())absorb(row);
+    }finally{sportsBusy=false;}
+    if(sportsPending)sportsPush();
   }
   async function sportsPush(){
     if(!family||sportsBusy||!sportsPending)return;
     sportsBusy=true;
     try{
-      let q=client.from('family_sports_meals').update({content:sportsLocal(),updated_at:new Date().toISOString()}).eq('family_id',family);
-      if(sportsVersion)q=q.eq('updated_at',sportsVersion);
-      const {data:rows,error}=await q.select('updated_at');
-      if(error)throw error;
-      if(!rows?.length){
-        sportsPending=false;
-        await sportsPull();
-        window.dispatchEvent(new Event('little-days-sports-conflict'));
-      }else{
-        sportsVersion=rows[0].updated_at;
-        sportsPending=false;
+      for(let attempt=0;attempt<4&&sportsPending;attempt++){
+        const gen=sportsGen, content=sportsLocal();
+        let q=client.from('family_sports_meals').update({content,updated_at:new Date().toISOString()}).eq('family_id',family);
+        if(sportsVersion)q=q.eq('updated_at',sportsVersion);
+        const {data:rows,error}=await q.select('updated_at');
+        if(error)throw error;
+        if(rows?.length){
+          sportsVersion=rows[0].updated_at; setBase(content);
+          sportsPending=gen!==sportsGen;          // more changes arrived while saving: send them too
+        }else{
+          // Someone else saved first: merge their version with ours and try again.
+          const row=await fetchRow(); if(!row)break;
+          absorb(row); sportsPending=true;
+        }
       }
-    }catch(e){console.warn('Sports and meals sync retry:',e);}
+    }catch(e){console.warn('Meal plan sync will retry:',e);}
     finally{sportsBusy=false;}
   }
   async function sportsStart(){
@@ -167,16 +200,19 @@
     sportsPoll=setInterval(()=>{
       if(sportsPending)sportsPush();
       else if(document.visibilityState==='visible')sportsPull().catch(console.warn);
-    },12000);
+    },10000);
   }
   window.littleDaysSportsSync={
-    queue(){if(!family)return;sportsPending=true;sportsPush();},
+    queue(){if(!family)return;sportsGen++;sportsPending=true;sportsPush();},
+    refresh(){if(!family)return;if(sportsPending)sportsPush();else sportsPull().catch(console.warn);},
     connected(){return !!family;}
   };
-  window.addEventListener('online',()=>{if(sportsPending)sportsPush();else if(family)sportsPull().catch(console.warn);});
+  window.addEventListener('online',()=>window.littleDaysSportsSync.refresh());
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')window.littleDaysSportsSync.refresh();});
 
   function stopSync(forget) {
     clearInterval(sportsPoll); sportsPoll=null; sportsVersion=null; sportsPending=false;
+    if (forget) { try { localStorage.removeItem('ld_sports_meals_base'); } catch (e) { /* ignore */ } }
     clearInterval(pollTimer); pollTimer = null;
     clearTimeout(queueTimer); queueTimer = null;
     if (liveChannel) { client.removeChannel(liveChannel); liveChannel = null; }
@@ -371,7 +407,7 @@
     sportsStart().catch(e => {
       console.warn('Sports and meals sync will retry:', e);
       clearInterval(sportsPoll);
-      sportsPoll = setInterval(() => { if (sportsPending) sportsPush(); else if (document.visibilityState === 'visible') sportsPull().catch(console.warn); }, 12000);
+      sportsPoll = setInterval(() => { if (sportsPending) sportsPush(); else if (document.visibilityState === 'visible') sportsPull().catch(console.warn); }, 10000);
     });
   }
 

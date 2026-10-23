@@ -142,6 +142,7 @@
     if (isActive) {
       if (typeof render === 'function') render();
       window.littleDaysSync?.refresh?.();
+      window.littleDaysSportsSync?.refresh?.();
       window.littleDaysReminders?.refresh?.();
     } else backupNow();
   }));

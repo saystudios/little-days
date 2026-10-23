@@ -165,7 +165,6 @@
   load();
   const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(data));}catch{alert('Could not save on this device. Free up space and try again.');}window.littleDaysSportsSync?.queue();window.dispatchEvent(new Event('littledays:saved'));};
   window.addEventListener('little-days-sports-remote',()=>{load();if(active)render();});
-  window.addEventListener('little-days-sports-conflict',()=>alert('Another parent updated the meal plan at the same time. The family version was reloaded. Please check your changes.'));
 
   const pref=()=>{const p=data.preferences||(data.preferences={cuisines:['Korean','Vietnamese','American','Italian'],allergies:[],servings:4});
     // Italian arrived later: turn it on once for families who already had preferences.

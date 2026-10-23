@@ -1,7 +1,7 @@
 // Every file the app needs at runtime. prepare-web.mjs copies these into www/
 // for the iOS app; tests and CI check index.html doesn't use anything missing.
 export const WEB_FILES = ['index.html', 'styles.css', 'app.js', 'kids.js', 'lists.js', 'kids-core.js', 'climb-core.js', 'climb.js', 'climb.css', 'planner-core.js',
-  'reminders-core.js', 'native.js', 'sync-core.js', 'item-sync.js', 'cloud.js', 'cloud-config.js', 'reminders.js',
+  'reminders-core.js', 'native.js', 'sync-core.js', 'meals-sync-core.js', 'item-sync.js', 'cloud.js', 'cloud-config.js', 'reminders.js',
   'scan-core.js', 'scan.js', 'sports-meals.js', 'sports-meals.css', 'family-upgrades.js', 'manifest.webmanifest', 'icon.svg', 'sw.js'];
 // Native plugins the app calls through Capacitor; each must be in the iOS project.
 export const NATIVE_PLUGINS = ['@capacitor/local-notifications', '@capacitor/app-launcher', '@capacitor/preferences',
