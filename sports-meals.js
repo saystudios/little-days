@@ -329,17 +329,31 @@
     toastMsg(n?`Added ${n} tournament meals to ${parse(t.date).toLocaleDateString(undefined,{weekday:'long'})}`:'Those meals are already in the plan');
   }
 
+  /* Line icons for the tournament guide. */
+  const TI_PATHS={trophy:'<path d="M7 4h10v5a5 5 0 0 1-10 0zM12 14v4M8 21h8M7 6H4v1.5A3.5 3.5 0 0 0 7.5 11M17 6h3v1.5a3.5 3.5 0 0 1-3.5 3.5"/>',
+    before:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9.5 2.5h5"/>',
+    during:'<path d="M12 3.5s6 6.4 6 10.5a6 6 0 0 1-12 0c0-4.1 6-10.5 6-10.5z"/>',
+    after:'<path d="M20.5 8.5A8.5 8.5 0 0 0 5 7M3.5 15.5A8.5 8.5 0 0 0 19 17M5 3v4h4M19 21v-4h-4"/>',
+    clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    ban:'<circle cx="12" cy="12" r="8.5"/><path d="m6 6 12 12"/>',
+    x:'<path d="m7 7 10 10M17 7 7 17"/>',
+    cal:'<rect x="3.5" y="5" width="17" height="15.5" rx="4"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'};
+  const ti=(n,cls='mp-ti')=>`<span class="${cls}" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${TI_PATHS[n]}</svg></span>`;
+  const TOUR_SUB={before:'Night before to warm-up',during:'Between games',after:'Refuel and recover'};
+
   function tourneyHTML(w,today){
     const g=TOURNEY[tourPhase];
     if(!tourDay||!w.includes(tourDay))tourDay=w.includes(today)?(w.find(d=>d>=today&&parse(d).getDay()===6)||today):w[5];
-    const chip=f=>{const r=recipeFor(f);return r?`<button type="button" class="mp-tchip${allowed(r)?'':' off'}" data-recipe="${esc(f)}">${esc(r.art.slice(0,2))} ${esc(f)}</button>`:`<span class="mp-tchip plain">${esc(f)}</span>`;};
-    return `<div class="sm-card mp-tourney"><div class="mp-thead"><h2>🏆 Tournament day guide</h2><p class="sub">Timing, what to eat and what to avoid.</p></div>
-      <div class="mp-tphases" role="group" aria-label="When">${Object.entries(TOURNEY).map(([k,p])=>`<button type="button" data-tphase="${k}" aria-pressed="${tourPhase===k}" class="${tourPhase===k?'chosen':''}"><span aria-hidden="true">${p.icon}</span> ${p.label}</button>`).join('')}</div>
-      <div class="mp-tcols"><ol class="mp-trows">${g.rows.map(r=>`<li><span class="mp-twhen">${esc(r.when)}</span><p>${esc(r.what)}</p><div class="mp-tchips">${r.foods.map(chip).join('')}</div></li>`).join('')}</ol>
-        <div class="mp-tavoid"><h3>🚫 Avoid</h3><ul>${g.avoid.map(a=>`<li>${esc(a)}</li>`).join('')}</ul></div></div>
-      <div class="mp-tplan"><label for="mpTourDay">Plan a tournament day</label><select id="mpTourDay">${w.map(d=>`<option value="${d}"${d===tourDay?' selected':''}>${esc(parse(d).toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'}))}</option>`).join('')}</select>
-        <button type="button" class="btn primary" data-tplan>Fill this day</button></div>
-      <p class="sub">General tips for active kids, not medical or nutrition advice. Ask your doctor about allergies or special needs.</p></div>`;
+    const chip=f=>{const r=recipeFor(f);return r?`<button type="button" class="mp-tchip${allowed(r)?'':' off'}" data-recipe="${esc(f)}">${esc(f)}<span class="mp-tchev" aria-hidden="true">›</span></button>`:`<span class="mp-tchip plain">${esc(f)}</span>`;};
+    return `<section class="sm-card mp-tourney" aria-labelledby="mpTourTitle">
+      <div class="mp-thead">${ti('trophy','mp-tbadge')}<div><h2 id="mpTourTitle">Tournament day guide</h2><p class="sub">Timing, what to eat and what to avoid</p></div></div>
+      <div class="mp-tphases" role="group" aria-label="When">${Object.entries(TOURNEY).map(([k,p])=>`<button type="button" data-tphase="${k}" aria-pressed="${tourPhase===k}" class="${tourPhase===k?'chosen':''}">${ti(k)}<span><b>${p.label}</b><small>${TOUR_SUB[k]}</small></span></button>`).join('')}</div>
+      <div class="mp-tcols"><ol class="mp-trows">${g.rows.map(r=>`<li><span class="mp-twhen">${ti('clock')}${esc(r.when)}</span><p>${esc(r.what)}</p><div class="mp-tchips">${r.foods.map(chip).join('')}</div></li>`).join('')}</ol>
+        <aside class="mp-tavoid" aria-label="Avoid"><h3>${ti('ban')}Avoid</h3><ul>${g.avoid.map(a=>`<li>${ti('x','mp-tx')}<span>${esc(a)}</span></li>`).join('')}</ul></aside></div>
+      <div class="mp-tplan"><div class="mp-tplan-txt">${ti('cal','mp-tbadge sm')}<span><label for="mpTourDay">Plan a tournament day</label><small>Fills empty Sports meals from this guide</small></span></div>
+        <div class="mp-tplan-ctl"><select id="mpTourDay">${w.map(d=>`<option value="${d}"${d===tourDay?' selected':''}>${esc(parse(d).toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'}))}</option>`).join('')}</select>
+        <button type="button" class="btn primary" data-tplan>Fill this day</button></div></div>
+      <p class="mp-tnote">General tips for active kids, not medical or nutrition advice. Ask your doctor about allergies or special needs.</p></section>`;
   }
   /* Fill a day's empty Sports slots from the guide, respecting cuisines and allergies. */
   function planTournamentDay(date){
