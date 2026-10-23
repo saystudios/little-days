@@ -14,6 +14,8 @@
   const KEYED = { planMeals: 'id', meals: 'id', events: 'id', customRecipes: 'name' };
   const SETS = ['favorites'];
   const MAPS = ['groceryChecked', 'dayTypes', 'checklist'];
+  /* objects whose own lists merge item by item (tournament plan steps and packing list) */
+  const NESTED = { tourSchedule: { items: 'id', pack: 'id' } };
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
   const arr = v => (Array.isArray(v) ? v : []);
@@ -43,7 +45,17 @@
     }
     return out;
   }
-  /* base may be null (first sync after updating): then nothing counts as deleted. */
+  function mergeNested(base, local, remote, lists) {
+    if (!local || typeof local !== 'object') return remote;
+    if (!remote || typeof remote !== 'object') return local;
+    const out = { ...remote };
+    for (const k of new Set([...Object.keys(local), ...Object.keys(remote)])) {
+      if (lists[k]) out[k] = mergeList(base ? obj(base)[k] : [], local[k], remote[k], lists[k]);
+      else if (base ? !same(obj(base)[k], local[k]) : !(k in remote)) { if (k in local) out[k] = local[k]; else delete out[k]; }
+    }
+    return out;
+  }
+    /* base may be null (first sync after updating): then nothing counts as deleted. */
   function merge(base, local, remote) {
     const B = obj(base), L = obj(local), Rm = obj(remote);
     const out = { ...Rm };
@@ -51,9 +63,10 @@
       if (KEYED[key]) out[key] = mergeList(base ? B[key] : [], L[key], Rm[key], KEYED[key]);
       else if (SETS.includes(key)) out[key] = mergeSet(base ? B[key] : [], L[key], Rm[key]);
       else if (MAPS.includes(key)) out[key] = mergeMap(base ? B[key] : {}, L[key], Rm[key]);
+      else if (NESTED[key]) out[key] = mergeNested(base ? B[key] : null, L[key], Rm[key], NESTED[key]);
       else if (!(key in Rm) || (base && !same(B[key], L[key])) || (!base && key in L && !(key in Rm))) { if (key in L) out[key] = L[key]; }
     }
     return out;
   }
-  return { merge, mergeList, mergeSet, mergeMap };
+  return { merge, mergeList, mergeSet, mergeMap, mergeNested };
 });

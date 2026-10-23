@@ -62,7 +62,7 @@
       if (PREP_KINDS.includes(e.kind)) {
         const eve = dateKey(plusDays(parseDate(e.date), -1));
         out.push({ key: `sp|${e.id}|${e.date}`, kind: 'prep', at: at(eve, p.prepTime || '19:00'),
-          title: `🎒 Pack for ${e.title} tomorrow`, body: [label, 'Check the packing list in Sports & Meals.'].filter(Boolean).join(' · ') });
+          title: `🎒 Pack for ${e.title} tomorrow`, body: [label, 'Check your packing list in Meal Plan.'].filter(Boolean).join(' · ') });
       }
     }
 

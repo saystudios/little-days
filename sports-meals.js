@@ -142,6 +142,13 @@
     'Steamed egg (gyeran-jjim)':'Protein · vitamin D','Mild soft tofu soup':'Protein · calcium','Beef pho (pho bo)':'Protein · iron','Tofu in tomato sauce':'Protein · calcium',
     'Mac and cheese with broccoli':'Calcium · protein','Egg and cheese muffin cups':'Protein · calcium','Spinach and ricotta stuffed shells':'Calcium · iron',
     'Hard-boiled eggs and grapes':'Protein','Korean banana milk':'Calcium'};
+  // Taekwondo tournament day meals (used by the tournament plan below)
+  BUILT_IN.push(
+    R('Mini pancakes and strawberries','','American','Breakfast','🥞🍓','pcv',['pancake mix','milk','eggs','strawberries','yogurt (optional)'],['Wheat','Egg','Milk'],'Make 3–4 small pancakes (about 3 inches). Serve with sliced strawberries, a spoon of yogurt if your child likes it, and a cup of water. Eat about 2–3 hours before competing.'),
+    R('Applesauce or crackers','','American','Fuel before','🍎🍘','c',['applesauce pouches','crackers'],['Wheat'],'An applesauce pouch or a small handful of crackers about an hour before check-in. Easy on the stomach.'),
+    R('Grilled chicken salad','','American','Lunch','🥗🍗','pcv',['grilled chicken','lettuce','cucumber','cherry tomatoes','salad dressing','bread or crackers'],['Wheat'],'Slice grilled chicken over lettuce, cucumber and tomatoes. Pack dressing on the side so the salad stays crisp, with bread or crackers.'),
+    R('Applesauce or pretzels','','American','Between games','🍎🥨','c',['applesauce pouches','pretzels'],['Wheat'],'A quick, light snack between rounds: an applesauce pouch or a few pretzels, with sips of water.'),
+    R('Chicken or beef, rice and vegetables','','American','Recover after','🍗🍚','pcv',['chicken or beef','rice','broccoli','carrots'],[],'After competing: grilled or pan-cooked chicken or beef with rice and steamed vegetables, plus plenty of water.'));
   const TINTS=['#ffe3ec','#ece6ff','#e3efff','#e2f6ec','#fff4d6','#ffe9dc','#fde6f3'];
   const TYPE_FROM_OLD={Snack:'Snacks','Tournament bag':'Snacks'};
   const normRecipe=r=>({...r,type:TYPE_FROM_OLD[r.type]||r.type||'Dinner',art:r.art||'🍽️',groups:r.groups||'',allergens:r.allergens||[],ingredients:r.ingredients||[],steps:r.steps||r.instructions||'',custom:true});
@@ -163,7 +170,7 @@
   const load=()=>{try{data={...defaults(),...JSON.parse(localStorage.getItem(KEY)||'{}')};}catch{data=defaults();}
     if(!Array.isArray(data.favorites))data.favorites=[]; if(!data.groceryChecked||typeof data.groceryChecked!=='object')data.groceryChecked={}; migrate();};
   load();
-  const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(data));}catch{alert('Could not save on this device. Free up space and try again.');}window.littleDaysSportsSync?.queue();window.dispatchEvent(new Event('littledays:saved'));};
+  const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(data));}catch{alert('Could not save on this device. Free up space and try again.');}window.littleDaysSportsSync?.queue();window.dispatchEvent(new Event('littledays:saved'));window.littleDaysReminders?.apply?.();};
   window.addEventListener('little-days-sports-remote',()=>{load();if(active)render();});
 
   const pref=()=>{const p=data.preferences||(data.preferences={cuisines:['Korean','Vietnamese','American','Italian'],allergies:[],servings:4});
@@ -187,6 +194,20 @@
   nav?.insertBefore(railButton,nav.querySelector('.add-btn'));
   const barButton=document.querySelector('.tabbar [data-meals-tab]');
   let tourPhase='before', tourDay=null;
+  /* Taekwondo tournament plan: the family's own timeline + packing list (editable, synced). */
+  const TKD_KINDS={meal:['🍽️','Meal'],snack:['🍎','Snack'],event:['🥋','Activity']};
+  const tkdDefault=()=>({title:'Taekwondo tournament',date:'',remind:false,items:[
+    {id:'t1',time:'07:00',what:'3–4 mini pancakes, strawberries, optional yogurt, water',kind:'meal',slot:'Breakfast',recipe:'Mini pancakes and strawberries'},
+    {id:'t2',time:'09:15',what:'Applesauce or crackers',kind:'snack',slot:'Fuel before',recipe:'Applesauce or crackers'},
+    {id:'t3',time:'10:00',what:'Check-in, sip water',kind:'event'},
+    {id:'t4',time:'11:30',what:'Grilled chicken salad, dressing on the side, bread or crackers',kind:'meal',slot:'Lunch',recipe:'Grilled chicken salad'},
+    {id:'t5',time:'13:30',what:'Applesauce or pretzels',kind:'snack',slot:'Between games',recipe:'Applesauce or pretzels'},
+    {id:'t6',time:'14:15',what:'Warm-up, sip water',kind:'event'},
+    {id:'t7',time:'15:00',what:'Poomsae',kind:'event'},
+    {id:'t8',time:'15:30',end:'16:30',what:'Chicken or beef, rice, vegetables, water',kind:'meal',slot:'Recover after',recipe:'Chicken or beef, rice and vegetables'}],
+    pack:['Applesauce pouches','Strawberries','Pretzels','Water bottle','Spare snack','Napkins','Insulated bag'].map((text,i)=>({id:'p'+(i+1),text,done:false}))});
+  const sched=()=>{const t=data.tourSchedule;if(!t||!Array.isArray(t.items)||!Array.isArray(t.pack))data.tourSchedule=tkdDefault();return data.tourSchedule;};
+  const clock=t=>{if(!/^\d{2}:\d{2}$/.test(t||''))return '';const [h,m]=t.split(':').map(Number);return new Date(2000,0,1,h,m).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});};
   let active=false, tab='plan', plan=localStorage.getItem('ld_meal_plan_kind')==='sports'?'sports':'regular', week=0, phoneDay=null, search='';
   function open(){
     active=true;
@@ -251,9 +272,61 @@
           <p class="sub">A simple check of what's planned — not medical or nutrition advice.</p></div>
 
       </div>
-      ${plan==='sports'?tourneyHTML(w,today):''}
+      ${plan==='sports'?tkdHTML()+tourneyHTML(w,today):''}
       <div class="sm-card mp-popular"><h2>Popular Korean recipes</h2><div class="mp-strip">${korean.map(r=>recipeCard(r)).join('')}</div></div>
       <p class="sm-note">Each plan has its own week. Meal plans, recipes and grocery lists sync with your family when signed in.</p>`;
+  }
+
+  function tkdHTML(){
+    const t=sched(), items=[...t.items].sort((a,b)=>(a.time||'99').localeCompare(b.time||'99')), packed=t.pack.filter(p=>p.done).length;
+    const dateLabel=t.date?parse(t.date).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'}):'';
+    return `<div class="sm-card mp-tkd" id="mpTkd"><div class="mp-tkd-head"><h2>🥋 ${esc(t.title)}</h2><button type="button" class="mp-tkd-rename" data-tkd-rename aria-label="Rename this plan">✏️</button></div>
+      <div class="mp-tkd-when"><label class="mp-tkd-date">Tournament date<input type="date" id="tkdDate" value="${esc(t.date||'')}"></label><p class="sub">${dateLabel?`📅 ${esc(dateLabel)}`:'Pick the tournament date, then add the meals to your plan.'}</p></div>
+      <ol class="mp-tl">${items.map(i=>{const k=TKD_KINDS[i.kind]||TKD_KINDS.event;return `<li class="mp-tl-${esc(i.kind)}"><button type="button" data-tkd-item="${esc(i.id)}">
+        <span class="mp-tl-time">${esc(clock(i.time)||'—')}${i.end?`<small>– ${esc(clock(i.end))}</small>`:''}</span><span class="mp-tl-dot" aria-hidden="true">${k[0]}</span>
+        <span class="mp-tl-what">${esc(i.what)}${i.slot&&i.kind!=='event'?`<small>${SLOT_ICON[i.slot]||''} ${esc(i.slot)}</small>`:''}</span></button></li>`;}).join('')}</ol>
+      <button type="button" class="mp-tkd-addstep" data-tkd-add>＋ Add a step</button>
+      <div class="mp-tkd-pack"><h3>🎒 Pack <small>${packed} of ${t.pack.length} packed</small></h3>
+        <div class="mp-tkd-bar" aria-hidden="true"><span style="width:${t.pack.length?Math.round(packed/t.pack.length*100):0}%"></span></div>
+        ${t.pack.map(p=>`<div class="mp-tkd-packrow"><label class="sm-check"><input type="checkbox" data-tkd-pack="${esc(p.id)}" ${p.done?'checked':''}><span>${esc(p.text)}</span></label><button type="button" class="mp-tkd-x" data-tkd-unpackitem="${esc(p.id)}" aria-label="Remove ${esc(p.text)}">✕</button></div>`).join('')}
+        <div class="mp-own"><input type="text" id="tkdPackNew" maxlength="60" placeholder="Add something to pack…" aria-label="Add something to pack"><button type="button" class="btn" data-tkd-packadd>Add</button></div>
+        ${packed?'<button type="button" class="link-btn" data-tkd-unpack>Start over (uncheck all)</button>':''}</div>
+      <div class="mp-tkd-actions">
+        <button type="button" class="btn primary" data-tkd-plan>🍽️ Add meals to plan</button>
+        <label class="switch mp-tkd-remind"><input type="checkbox" data-tkd-remind ${t.remind?'checked':''}><span>🔔 Remind me at each step</span></label></div>
+      <p class="sub">${t.remind?`Reminders come ${esc(String(window.littleDaysReminders?.prefs?.().minutes??10))} minutes before each step, plus a packing reminder the evening before (change timing in Settings → Reminders).`:'Turn on reminders to get a heads-up before each step and a packing reminder the night before.'}</p></div>`;
+  }
+  function tkdEdit(itemId){
+    const t=sched(), it=itemId?t.items.find(x=>x.id===itemId):{time:'',what:'',kind:'meal',slot:'Lunch'};
+    if(!it)return;
+    const slots=PLANS.sports.slots;
+    const s=sheet(`<div class="mp-sheet-head"><h2>${itemId?'Edit step':'Add a step'}</h2><button type="button" class="mp-x" data-close aria-label="Close">✕</button></div>
+      <form class="sm-form" id="tkdForm"><div class="sm-row"><label>Time<input type="time" name="time" value="${esc(it.time||'')}" required></label><label>Until <small>(optional)</small><input type="time" name="end" value="${esc(it.end||'')}"></label></div>
+      <label>What<input name="what" maxlength="120" value="${esc(it.what)}" required></label>
+      <div class="sm-row"><label>Type<select name="kind">${Object.entries(TKD_KINDS).map(([k,[i,l]])=>`<option value="${k}"${it.kind===k?' selected':''}>${i} ${l}</option>`).join('')}</select></label>
+      <label>In the meal plan as<select name="slot">${slots.map(x=>`<option${it.slot===x?' selected':''}>${esc(x)}</option>`).join('')}</select></label></div>
+      <div class="sm-actions"><button class="btn primary" type="submit">Save</button>${itemId?'<button class="btn" type="button" id="tkdDel">Delete step</button>':''}</div></form>`);
+    s.querySelector('#tkdForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.currentTarget);
+      const next={...it,time:String(f.get('time')||''),end:String(f.get('end')||''),what:String(f.get('what')||'').trim(),kind:String(f.get('kind')),slot:String(f.get('slot'))};
+      if(!next.what||!next.time)return; if(!next.end)delete next.end;
+      if(itemId){if(next.what!==it.what)delete next.recipe;t.items=t.items.map(x=>x.id===itemId?next:x);}else t.items.push({...next,id:id()});
+      save();closeSheet();render();};
+    s.querySelector('#tkdDel')?.addEventListener('click',()=>{t.items=t.items.filter(x=>x.id!==itemId);save();closeSheet();render();});
+  }
+  function tkdAddMeals(){
+    const t=sched();
+    if(!t.date){alert('Pick the tournament date first.');panel.querySelector('#tkdDate')?.focus();return;}
+    let n=0;
+    for(const it of t.items){
+      if(it.kind==='event'||!it.slot)continue;
+      const name=(it.recipe&&recipeFor(it.recipe))?it.recipe:it.what;
+      if(mealsAt('sports',t.date,it.slot).some(m=>m.name===name))continue;
+      data.planMeals.push({id:id(),plan:'sports',date:t.date,slot:it.slot,name}); n++;
+    }
+    save(); plan='sports'; localStorage.setItem('ld_meal_plan_kind',plan);
+    week=Math.round((monday(parse(t.date))-monday(new Date()))/(7*864e5)); phoneDay=t.date; render();
+    window.scrollTo({top:0,behavior:'smooth'});
+    toastMsg(n?`Added ${n} tournament meals to ${parse(t.date).toLocaleDateString(undefined,{weekday:'long'})}`:'Those meals are already in the plan');
   }
 
   function tourneyHTML(w,today){
@@ -414,7 +487,7 @@
   function quick(k,w){
     if(k==='recipes'||k==='korean'){tab=k;search='';render();return;}
     if(k==='fill'){if(!confirm(`Fill empty meals this week in ${PLANS[plan].label}? Meals you planned stay.`))return;const n=fillWeek(plan,w);save();render();toastMsg(n?`Added ${n} meals`:'Every meal is already planned');return;}
-    if(k==='tournament'){plan='sports';tourPhase='before';localStorage.setItem('ld_meal_plan_kind',plan);render();panel.querySelector('.mp-tourney')?.scrollIntoView({behavior:'smooth',block:'start'});toastMsg('Here is the tournament day guide');return;}
+    if(k==='tournament'){plan='sports';tourPhase='before';localStorage.setItem('ld_meal_plan_kind',plan);render();panel.querySelector('#mpTkd')?.scrollIntoView({behavior:'smooth',block:'start'});toastMsg('Here is your tournament day plan');return;}
     if(k==='repeat'){
       const prev=weekDates(week-1), src=(data.planMeals||[]).filter(m=>m.plan===plan&&prev.includes(m.date));
       if(!src.length){alert('Nothing was planned last week in this plan.');return;}
@@ -435,6 +508,25 @@
     qa('[data-meal]').forEach(b=>b.onclick=()=>{const m=data.planMeals.find(x=>x.id===b.dataset.meal);if(m)openRecipe(m.name,{mealId:m.id});});
     qa('[data-recipe]').forEach(b=>b.onclick=()=>openRecipe(b.dataset.recipe));
     qa('[data-quick]').forEach(b=>b.onclick=()=>quick(b.dataset.quick,w));
+    qa('[data-tkd-item]').forEach(b=>b.onclick=()=>tkdEdit(b.dataset.tkdItem));
+    panel.querySelector('[data-tkd-add]')?.addEventListener('click',()=>tkdEdit(null));
+    panel.querySelector('[data-tkd-rename]')?.addEventListener('click',()=>{const t=sched();const v=(prompt('Name this plan:',t.title)||'').trim().slice(0,60);if(v){t.title=v;save();render();}});
+    qa('[data-tkd-pack]').forEach(b=>b.onchange=()=>{const p=sched().pack.find(x=>x.id===b.dataset.tkdPack);if(p){p.done=b.checked;save();render();}});
+    qa('[data-tkd-unpackitem]').forEach(b=>b.onclick=()=>{const t=sched();t.pack=t.pack.filter(x=>x.id!==b.dataset.tkdUnpackitem);save();render();});
+    const pn=panel.querySelector('#tkdPackNew'), packAdd=()=>{const v=(pn?.value||'').trim();if(!v)return;sched().pack.push({id:id(),text:v.slice(0,60),done:false});save();render();panel.querySelector('#tkdPackNew')?.focus();};
+    panel.querySelector('[data-tkd-packadd]')?.addEventListener('click',packAdd); if(pn)pn.onkeydown=e=>{if(e.key==='Enter')packAdd();};
+    panel.querySelector('[data-tkd-unpack]')?.addEventListener('click',()=>{sched().pack.forEach(p=>p.done=false);save();render();});
+    const tdate=panel.querySelector('#tkdDate'); if(tdate)tdate.onchange=()=>{sched().date=tdate.value;save();render();};
+    panel.querySelector('[data-tkd-plan]')?.addEventListener('click',tkdAddMeals);
+    panel.querySelector('[data-tkd-remind]')?.addEventListener('change',async e=>{
+      const t=sched(); t.remind=e.target.checked; save(); render();
+      if(!t.remind)return;
+      if(!t.date)toastMsg('Pick the tournament date so reminders know when to come');
+      const R=window.littleDaysReminders, st=R?.status?.();
+      if(st==='prompt'){await R.ask();}
+      else if(st&&st!=='granted')alert('Reminders are off on this device. Turn them on in Settings → Reminders.');
+      else if(R&&!R.enabled())alert('Reminders are switched off in Settings → Reminders. Turn them on to get these.');
+    });
     qa('[data-tphase]').forEach(b=>b.onclick=()=>{tourPhase=b.dataset.tphase;render();});
     const td=panel.querySelector('#mpTourDay'); if(td)td.onchange=()=>{tourDay=td.value;};
     panel.querySelector('[data-tplan]')?.addEventListener('click',()=>{const d=td?.value||tourDay;tourDay=d;

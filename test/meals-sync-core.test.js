@@ -55,3 +55,16 @@ test('no base yet (first sync after update): nothing is deleted, everything is c
   assert.deepEqual(out.planMeals.map(m => m.id).sort(), ['m1', 't1']);
   assert.deepEqual(out.favorites.sort(), ['A', 'B']);
 });
+
+test('tournament plan: both parents tick packing items and edit steps at once', () => {
+  const t = { title: 'TKD', date: '2026-10-24', remind: false,
+    items: [{ id: 't1', time: '07:00', what: 'Pancakes' }, { id: 't2', time: '09:15', what: 'Applesauce' }],
+    pack: [{ id: 'p1', text: 'Water bottle', done: false }, { id: 'p2', text: 'Napkins', done: false }] };
+  const b = { tourSchedule: t };
+  const mine = { tourSchedule: { ...t, remind: true, pack: [{ ...t.pack[0], done: true }, t.pack[1]] } };
+  const theirs = { tourSchedule: { ...t, items: [...t.items, { id: 't3', time: '10:00', what: 'Check-in' }], pack: [t.pack[0], { ...t.pack[1], done: true }] } };
+  const out = merge(b, mine, theirs).tourSchedule;
+  assert.equal(out.remind, true);
+  assert.deepEqual(out.pack.map(p => p.done), [true, true]);
+  assert.deepEqual(out.items.map(i => i.id), ['t1', 't2', 't3']);
+});

@@ -33,9 +33,18 @@
     return status;
   }
   const active = () => !off && status === 'granted';
-  // The sports schedule was removed (the Meal Planner replaced it), so old
-  // sports entries no longer create reminders.
-  const sportsEvents = () => [];
+  // Tournament plan (Meal Plan → Sports meals) with "Remind me at each step" on:
+  // a heads-up before each timed step plus a packing reminder the evening before.
+  // (Older sports-planner entries no longer create reminders.)
+  const sportsEvents = () => {
+    try {
+      const t = JSON.parse(localStorage.getItem('ld_sports_meals_v1') || '{}').tourSchedule;
+      if (!t || !t.remind || !/^\d{4}-\d{2}-\d{2}$/.test(t.date || '') || !Array.isArray(t.items)) return [];
+      const steps = t.items.filter(i => i && /^\d{2}:\d{2}$/.test(i.time || '') && i.what)
+        .map(i => ({ id: 'tkd-' + i.id, title: String(i.what).slice(0, 80), sport: t.title || 'Tournament', kind: 'Step', date: t.date, time: i.time }));
+      return [{ id: 'tkd-pack', title: t.title || 'the tournament', kind: 'Tournament', date: t.date, time: '' }, ...steps];
+    } catch { return []; }
+  };
   const planner = () => (typeof data === 'object' && data ? data : null);
 
   const switchHtml = (id, label, checked) => `<label class="switch"><input type="checkbox" id="${id}"${checked ? ' checked' : ''}><span>${label}</span></label>`;
@@ -162,6 +171,7 @@
   }
   window.littleDaysReminders = { apply, refresh, ask, prefs: () => prefs, enabled: () => active(), status: () => status };
   window.addEventListener('littledays:saved', () => { maybeAsk(); });
+  window.addEventListener('little-days-sports-remote', () => apply());
 
   // Website: show what's due while the page is open.
   const shown = new Set();
