@@ -4,12 +4,16 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   unit:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -17,8 +21,8 @@ jobs:
         run: npm test
       - name: Check page scripts parse
         run: |
-          for f in planner-core.js reminders-core.js native.js kids-core.js sync-core.js meals-sync-core.js item-sync.js app.js kids.js lists.js cloud.js reminders.js scan-core.js scan.js sports-meals.js family-upgrades.js sw.js; do node --check "$f"; done
-          node -e "const s=require('fs').readFileSync('index.html','utf8');const m=[...s.matchAll(/<script>([\s\S]*?)<\/script>/g)];if(!m.length)throw Error('inline script missing');m.forEach(x=>new Function(x[1]));console.log('inline script OK')"
+          for f in theme-init.js planner-core.js reminders-core.js native.js kids-core.js sync-core.js meals-sync-core.js item-sync.js app.js kids.js lists.js cloud.js reminders.js scan-core.js scan.js sports-meals.js family-upgrades.js sw.js; do node --check "$f"; done
+          node -e "const s=require('fs').readFileSync('index.html','utf8');if(/<script(?![^>]*\ssrc=)[^>]*>/.test(s))throw Error('inline <script> in index.html: the website security policy blocks it; use a file');console.log('no inline scripts')"
   database:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -31,6 +35,8 @@ jobs:
         options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Schema, migrations and security tests
         env:
           PGHOST: localhost
