@@ -25,12 +25,16 @@ on:
       - 'package.json'
       - 'scripts/**'
       - '.github/workflows/ios-preview.yml'
+permissions:
+  contents: read
 jobs:
   ios-simulator:
     runs-on: macos-26-intel  # same runner as TestFlight; macOS ARM runners were often unavailable
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

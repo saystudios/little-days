@@ -17,3 +17,10 @@ capacitor.config.json
 cloud-config.example.js
 *.md
 resources
+# Never upload secrets or signing files, even if one is saved here by mistake.
+.env*
+.dev.vars*
+*.p8
+*.p12
+*.mobileprovision
+*.pem

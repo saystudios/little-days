@@ -225,7 +225,7 @@
 
   /* ---------- Pieces ---------- */
   const art=(r,size='')=>{const a=[...(r?.art||'🍽️')];const tint=TINTS[[...(r?.name||'x')].reduce((s,c)=>s+c.charCodeAt(0),0)%TINTS.length];
-    return `<span class="mp-plate ${size}" style="--tint:${tint}" aria-hidden="true"><span class="mp-plate-main">${a[0]}</span>${a.length>1?`<span class="mp-plate-side">${a.slice(1).join('')}</span>`:''}</span>`;};
+    return `<span class="mp-plate ${size}" style="--tint:${tint}" aria-hidden="true"><span class="mp-plate-main">${esc(a[0])}</span>${a.length>1?`<span class="mp-plate-side">${esc(a.slice(1).join(''))}</span>`:''}</span>`;};
   const shortDate=k=>parse(k).toLocaleDateString(undefined,{month:'short',day:'numeric'});
   const rangeLabel=w=>{const a=parse(w[0]),b=parse(w[6]);
     try{return new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric',year:'numeric'}).formatRange(a,b);}

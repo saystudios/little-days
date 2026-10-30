@@ -15,7 +15,8 @@ do $$ declare open_to_anon text; internal_open text; app_missing text; begin
   assert internal_open is null, 'internal helpers callable by the app: ' || internal_open;
   select string_agg(f, ', ') into app_missing
     from unnest(array['is_family_member(uuid)', 'create_family(jsonb)', 'join_family(text)', 'regenerate_invite(uuid)',
-                      'family_members_list(uuid)', 'leave_family(uuid)', 'delete_account()', 'save_items(uuid,jsonb)']) f
+                      'family_members_list(uuid)', 'leave_family(uuid)', 'delete_account()', 'save_items(uuid,jsonb)',
+                      'remove_member(uuid,uuid)']) f
    where not has_function_privilege('authenticated', 'public.' || f, 'execute');
   assert app_missing is null, 'app calls missing for signed-in parents: ' || app_missing;
   raise notice 'ok: function access locked down';

@@ -31,7 +31,7 @@ Before the first upload, `com.saystudios.littledays` must be registered at devel
 
 The workflow declares `ITSAppUsesNonExemptEncryption = false` because the app only uses standard HTTPS. App Store Connect requires builds made with Xcode 26 / the iOS 26 SDK or later; the workflow picks the newest non-beta Xcode 26+ on the runner.
 
-`.github/scripts/asc.rb` is the old temporary-certificate script. No workflow runs it; don't run it by hand, because it revokes every Apple Distribution certificate on the team older than a day.
+Apple secrets are only given to the workflow steps that need them (not to `npm install` or the icon generator), and the workflow can only read this repository.
 
 ## What the iPhone/iPad app adds over the website
 - **Reminders that arrive when the app is closed** (Settings → Reminders): before activities, birthdays, an optional morning summary, and quiet hours. They're scheduled on the device with iOS notifications (no server needed), up to a week ahead, and refreshed whenever the planner changes or the app is opened. iOS allows 64 waiting notifications per app; Little Days uses at most 60, soonest first.

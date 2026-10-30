@@ -1,0 +1,19 @@
+# Security headers for every page and file of the Little Days website
+# (Cloudflare reads this file when the site is deployed; it is not used by the
+# iPhone/iPad app, which loads its files from inside the app).
+#
+# Content-Security-Policy notes:
+#   script-src  https://esm.sh is only for the fallback copy of supabase-js that
+#               cloud.js loads when ./vendor/supabase.js isn't on the website.
+#               Remove it once vendor/supabase.js is deployed.
+#   style-src   'unsafe-inline' is needed because the app sets style="…"
+#               attributes in the HTML it builds (no inline <script> is allowed).
+#   connect-src the Supabase project (database, sign-in, live updates over wss,
+#               and the scan-event edge function) from cloud-config.js.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://esm.sh; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://nfikelbsotibktlcgkyz.supabase.co wss://nfikelbsotibktlcgkyz.supabase.co; img-src 'self' data: blob:; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'; form-action 'self'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(self), microphone=(), geolocation=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
