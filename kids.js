@@ -60,9 +60,9 @@ function renderKidsToday() {
 function pendingRow(p) {
   const k = kidBy(p.kidId);
   if (p.type === 'chore') return `<div class="pending ${colorClass(k)}">${avatar(k, 36)}<span><strong>${esc(p.chore.emoji || '✅')} ${esc(p.chore.title)}</strong><small>${esc(k?.name || '')} says it's done${p.day !== todayKey() ? ' · ' + esc(parseDate(p.day).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })) : ''}</small></span>
-    <button class="btn small" data-k-reopen="${esc(p.chore.id)}|${p.day}">Not yet</button><button class="btn small primary" data-k-approve="${esc(p.chore.id)}|${p.day}">Approve</button></div>`;
+    <button class="btn small" data-k-reopen="${esc(p.chore.id)}|${esc(p.day)}">Not yet</button><button class="btn small primary" data-k-approve="${esc(p.chore.id)}|${esc(p.day)}">Approve</button></div>`;
   const r = p.redemption;
-  return `<div class="pending ${colorClass(k)}">${avatar(k, 36)}<span><strong>${esc(r.emoji || '🎁')} ${esc(r.title)}</strong><small>${esc(k?.name || '')} would like this · ${STAR} ${r.cost}</small></span>
+  return `<div class="pending ${colorClass(k)}">${avatar(k, 36)}<span><strong>${esc(r.emoji || '🎁')} ${esc(r.title)}</strong><small>${esc(k?.name || '')} would like this · ${STAR} ${Number(r.cost) || 0}</small></span>
     <button class="btn small" data-k-decline="${esc(r.id)}">Not now</button><button class="btn small primary" data-k-give="${esc(r.id)}">Give it</button></div>`;
 }
 
@@ -241,6 +241,12 @@ async function hashPin(pin, salt) {
   let h = 0; for (const ch of text) h = (h * 31 + ch.charCodeAt(0)) | 0; return 'x' + h;   // very old browsers only
 }
 const hasPin = () => !!pref.get('ld_kid_pin', '');
+/* Random salt for a new PIN (hex, so it never contains the '$' separator).
+   PINs saved earlier with an older salt keep working: the salt is stored with the hash. */
+function newPinSalt() {
+  if (crypto?.getRandomValues) return [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, '0')).join('');
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);   // very old browsers only
+}
 
 function startKidMode(kidId = '') {
   if (!hasPin()) return openPinSetup(() => startKidMode(kidId));
@@ -281,14 +287,14 @@ function renderKidMode() {
       <h2>${esc(r.emoji || '📋')} ${esc(r.name)}${finished ? ' <span class="km-done">All done!</span>' : ` <span class="km-count">${done.length}/${r.steps.length}</span>`}</h2>
       <div class="km-steps">${r.steps.map(s => `<button class="km-step${done.includes(s.id) ? ' on' : ''}" data-km-step="${esc(r.id)}|${esc(s.id)}" aria-pressed="${done.includes(s.id)}"><span class="km-emoji">${esc(s.emoji || '⭐')}</span><span>${esc(s.title)}</span><span class="km-tick" aria-hidden="true"></span></button>`).join('')}</div></section>`; }).join('')}
     <section class="km-card"><h2>✅ My chores</h2>
-      ${chores.length ? `<div class="km-steps">${chores.map(c => { const st = K.choreStatus(data, c, today); return `<button class="km-step${st !== 'todo' ? ' on' : ''}${st === 'waiting' ? ' wait' : ''}" data-km-chore="${esc(c.id)}" aria-pressed="${st !== 'todo'}"><span class="km-emoji">${esc(c.emoji || '✅')}</span><span>${esc(c.title)}${st === 'waiting' ? '<small>A grown-up will check ✋</small>' : starsOn() && c.stars ? `<small>${STAR} ${c.stars}</small>` : ''}</span><span class="km-tick" aria-hidden="true"></span></button>`; }).join('')}</div>`
+      ${chores.length ? `<div class="km-steps">${chores.map(c => { const st = K.choreStatus(data, c, today); return `<button class="km-step${st !== 'todo' ? ' on' : ''}${st === 'waiting' ? ' wait' : ''}" data-km-chore="${esc(c.id)}" aria-pressed="${st !== 'todo'}"><span class="km-emoji">${esc(c.emoji || '✅')}</span><span>${esc(c.title)}${st === 'waiting' ? '<small>A grown-up will check ✋</small>' : starsOn() && c.stars ? `<small>${STAR} ${Number(c.stars) || 0}</small>` : ''}</span><span class="km-tick" aria-hidden="true"></span></button>`; }).join('')}</div>`
         : '<p class="km-empty">No chores today. 🎉</p>'}</section>
     ${typeof climbCards === 'function' ? climbCards(k) : ''}
     ${starsOn() && data.rewards.length ? `<section class="km-card"><h2>🎁 Save up for</h2><div class="km-rewards">${data.rewards.map(r => {
-      const isAsked = asked.some(a => a.rewardId === r.id), can = avail >= r.cost;
+      const cost = Number(r.cost) || 0, isAsked = asked.some(a => a.rewardId === r.id), can = avail >= cost;
       return `<button class="km-reward${can ? ' can' : ''}" data-km-reward="${esc(r.id)}"${isAsked || !can ? ' aria-disabled="true"' : ''}><span class="km-emoji">${esc(r.emoji || '🎁')}</span><strong>${esc(r.title)}</strong>
-        <span class="km-cost">${isAsked ? 'Asked ✋' : can ? `Ask for it · ${STAR} ${r.cost}` : `${STAR} ${Math.max(0, r.cost - avail)} more`}</span>
-        <span class="bar" aria-hidden="true"><span style="width:${Math.min(100, Math.round(Math.max(0, avail) / r.cost * 100))}%"></span></span></button>`; }).join('')}</div></section>` : ''}
+        <span class="km-cost">${isAsked ? 'Asked ✋' : can ? `Ask for it · ${STAR} ${cost}` : `${STAR} ${Math.max(0, cost - avail)} more`}</span>
+        <span class="bar" aria-hidden="true"><span style="width:${Math.min(100, Math.round(Math.max(0, avail) / cost * 100))}%"></span></span></button>`; }).join('')}</div></section>` : ''}
     <footer class="km-foot">${data.kids.length > 1 ? '<button class="km-exit" data-km-switch>Switch kid</button>' : ''}<button class="km-exit" data-km-exit>Grown-ups 🔒</button></footer>
   </div>`;
 }
@@ -307,7 +313,7 @@ function openPinSetup(after) {
     const a = $('pin1').value, b = $('pin2').value;
     if (!/^\d{4}$/.test(a)) { $('formError').textContent = 'Use exactly 4 numbers.'; return; }
     if (a !== b) { $('formError').textContent = 'The two PINs don’t match.'; return; }
-    const salt = Math.random().toString(36).slice(2);
+    const salt = newPinSalt();
     pref.set('ld_kid_pin', salt + '$' + await hashPin(a, salt));
     closeSheet(); toast('PIN saved'); renderKidSettings(); after?.();
   };
