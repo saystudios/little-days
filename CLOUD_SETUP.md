@@ -12,6 +12,8 @@ Run each file in `supabase/migrations/` that you haven't run yet, in name order.
 - Parents can see who is in their family, leave a family, and delete their account.
 - Saves are time-stamped by the server and must be a valid planner under 2 MB.
 
+After `20261022000000_remove_member.sql`, the family owner sees a **Remove** button next to each other parent in Settings → Family sync. Removing a parent stops their access right away and replaces the invite code.
+
 ## Email sign-in codes (required for the iPhone app)
 Sign-in now asks for the code from the email, because email links can't open the iPhone app. In Supabase → Authentication → Emails → **Magic Link** template, include the code, for example:
 
@@ -47,6 +49,7 @@ Setup (once per Supabase project):
 2. Get an API key at console.anthropic.com and add it as an Edge Function secret named `ANTHROPIC_API_KEY` (Supabase → Edge Functions → Secrets). Never put this key in any web or app file.
 3. Deploy the function: `supabase functions deploy scan-event` (from this folder, after `supabase link`). Keep "Verify JWT" on, so only signed-in parents can call it.
 4. Optional: set a secret `SCAN_MODEL` to use a different Claude model (default `claude-haiku-5-5`).
+5. Optional: the function only answers browsers on the Little Days website (`https://little-days.saystudiosllc.workers.dev`) and the iPhone/iPad app. If the website moves to another address, add it as a secret `ALLOWED_ORIGINS` (comma-separated) and redeploy the function.
 
 Until the function is deployed the button still shows, and parents see "Scanning isn't set up yet."
 

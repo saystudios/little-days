@@ -16,11 +16,27 @@ const MAX_EVENTS = 25;
 const MEDIA = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const CATEGORIES = ['School', 'Sports', 'Music', 'Appointment', 'Family', 'Birthday', 'Holiday', 'Other'];
 
+// Only the Little Days website and the iPhone/iPad app may call this from a
+// browser. Extra origins (e.g. a custom domain) can be added with the optional
+// ALLOWED_ORIGINS secret, comma-separated.
+const ALLOWED_ORIGINS = new Set([
+  'https://little-days.saystudiosllc.workers.dev',
+  'capacitor://localhost',
+  'http://localhost',
+  'https://localhost',
+  ...(Deno.env.get('ALLOWED_ORIGINS') || '').split(',').map(o => o.trim()).filter(Boolean)
+]);
 const cors = {
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
+/* Echo the caller's Origin only when it's on the list; other sites get no CORS access. */
+function withCors(req: Request, res: Response) {
+  const origin = req.headers.get('Origin');
+  if (origin && ALLOWED_ORIGINS.has(origin)) res.headers.set('Access-Control-Allow-Origin', origin);
+  res.headers.append('Vary', 'Origin');
+  return res;
+}
 const reply = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 const fail = (status: number, code: string, message: string) => reply(status, { error: { code, message } });
@@ -76,7 +92,9 @@ Rules:
 Call add_events exactly once.`;
 }
 
-Deno.serve(async req => {
+Deno.serve(async req => withCors(req, await handle(req)));
+
+async function handle(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return fail(405, 'method', 'Use POST.');
   if (!API_KEY) return fail(503, 'not_configured', 'Scanning isn’t set up yet.');
@@ -144,4 +162,4 @@ Deno.serve(async req => {
   const call = (out.content || []).find((c: { type: string; name?: string }) => c.type === 'tool_use' && c.name === 'add_events');
   const events = Array.isArray(call?.input?.events) ? call.input.events.slice(0, MAX_EVENTS) : [];
   return reply(200, { events, remaining });
-});
+}
