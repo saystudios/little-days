@@ -37,7 +37,8 @@
   }
 
   /* Supabase client: bundled copy first (works offline in the iPhone app),
-     then a version-pinned CDN copy for the website. */
+     then a version-pinned CDN copy for the website. The website's security
+     policy (_headers) allows https://esm.sh only for this fallback. */
   async function loadSupabase() {
     if (window.supabase?.createClient) return window.supabase;
     await new Promise(resolve => {
@@ -349,11 +350,27 @@
       $('#cloudShare').disabled = !code;
     };
     client.from('families').select('*').eq('id', family).single().then(({ data: f }) => f && showCode(f.invite_code, f.invite_expires_at));
-    client.rpc('family_members_list', { fid: family }).then(({ data: rows, error }) => {
-      if (error || !rows?.length) return;
-      $('#memberList').innerHTML = '<h4 style="margin:16px 0 4px">Parents in this family</h4>' + rows.map(r =>
-        '<div class="note" style="font-size:14px;color:var(--ink)">' + esc(r.email) + (r.is_me ? ' (you)' : '') + (r.role === 'owner' ? ' · owner' : '') + '</div>').join('');
+    const loadMembers = () => client.rpc('family_members_list', { fid: family }).then(({ data: rows, error }) => {
+      const list = $('#memberList');
+      if (!list || error || !rows?.length) return;
+      // The family owner can remove other parents (needs the 2026-10-22 database update).
+      const iAmOwner = rows.some(r => r.is_me && r.role === 'owner');
+      list.innerHTML = '<h4 style="margin:16px 0 4px">Parents in this family</h4>' + rows.map(r =>
+        '<div class="note member-row" style="font-size:14px;color:var(--ink)"><span>' + esc(r.email) + (r.is_me ? ' (you)' : '') + (r.role === 'owner' ? ' · owner' : '') + '</span>' +
+        (iAmOwner && !r.is_me && r.role !== 'owner' ? '<button class="ghost" type="button" data-remove-member="' + esc(r.user_id) + '" data-email="' + esc(r.email) + '">Remove</button>' : '') +
+        '</div>').join('');
+      list.querySelectorAll('[data-remove-member]').forEach(btn => {
+        btn.onclick = () => busyButton(btn, async () => {
+          if (!confirm('Remove ' + btn.dataset.email + ' from your family? They will stop seeing the shared planner, and the invite code will be replaced.')) return;
+          const { error: removeError } = await client.rpc('remove_member', { fid: family, uid: btn.dataset.removeMember });
+          if (removeError) return msg(friendly(removeError), true);
+          msg('Removed ' + btn.dataset.email + '. A new invite code was made.');
+          loadMembers();
+          client.from('families').select('*').eq('id', family).single().then(({ data: f }) => f && showCode(f.invite_code, f.invite_expires_at));
+        });
+      });
     });
+    loadMembers();
     const inviteText = () => 'Join my family on Little Days! Open Settings → Family sync, sign in with your own email, tap Join family, and enter this private invite code: ' + code;
     const copyInvite = async () => {
       if (!code) return msg('Invite code is still loading. Try again.', true);
